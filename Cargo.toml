@@ -2,7 +2,25 @@
 name = "arcdps-chat-log"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "arcdps_chat_log"
+crate-type = ["cdylib"]
+
 [dependencies]
+anyhow = "1.0.58"
+arc_util = { git = "https://github.com/zerthox/arcdps-utils", tag = "0.8.0", features = ["settings", "log"] }
+arcdps = { version = "0.7.1", features = ["log"] }
+once_cell = "1.12.0"
+
+
+[patch.crates-io]
+# Use Krappa's fork with new unofficial extras support
+arcdps = { git = "https://github.com/Krappa322/arcdps_bindings.git" }
+arcdps_codegen = { git = "https://github.com/Krappa322/arcdps_bindings.git" }
+
+[build-dependencies]
+winres = "0.1"
