@@ -13,14 +13,24 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0.58"
 arc_util = { git = "https://github.com/zerthox/arcdps-utils", tag = "0.8.0", features = ["settings", "log"] }
-arcdps = { version = "0.7.1", features = ["log"] }
+arcdps = { version = "0.8", features = ["extras", "log", "serde", "strum"] }
+backtrace = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+log = { version = "0.4", features = ["max_level_trace", "release_max_level_info"] }
 once_cell = "1.12.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+simple-error = "0.2"
+winapi = { version = "0.3", features = ["consoleapi", "dbghelp", "memoryapi", "psapi"] }
 
+[patch."https://github.com/Zerthox/arcdps-bindings"]
+arcdps = { branch = "safe-message-callbacks", git = "https://github.com/cheahjs/Zerthox-arcdps-bindings.git" }
+arcdps-codegen = { branch = "safe-message-callbacks", git = "https://github.com/cheahjs/Zerthox-arcdps-bindings.git" }
 
 [patch.crates-io]
-# Use Krappa's fork with new unofficial extras support
-arcdps = { git = "https://github.com/Krappa322/arcdps_bindings.git" }
-arcdps_codegen = { git = "https://github.com/Krappa322/arcdps_bindings.git" }
+arcdps = { branch = "safe-message-callbacks", git = "https://github.com/cheahjs/Zerthox-arcdps-bindings.git" }
+arcdps-codegen = { branch = "safe-message-callbacks", git = "https://github.com/cheahjs/Zerthox-arcdps-bindings.git" }
+
 
 [build-dependencies]
 winres = "0.1"
