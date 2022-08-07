@@ -41,6 +41,10 @@ impl Plugin {
                 .context("failed to init database")?,
         );
 
+        self.notifications
+            .load()
+            .context("failed to load notifications module")?;
+
         Ok(())
     }
 

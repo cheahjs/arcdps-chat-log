@@ -15,7 +15,6 @@ pub struct ChatLogSettings {
 }
 
 impl ChatLogSettings {
-    /// Creates new reminder settings with the defaults.
     pub fn new() -> Self {
         Self {
             log_enabled: true,

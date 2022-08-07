@@ -1,5 +1,6 @@
 mod db;
 mod logui;
+mod mumblelink;
 mod notifications;
 mod panic_handler;
 mod plugin;
