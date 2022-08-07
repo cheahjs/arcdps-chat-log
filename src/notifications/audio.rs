@@ -10,7 +10,7 @@ use anyhow::Context;
 use log::{debug, error, info};
 use rodio::Decoder;
 
-pub const DEFAULT_PING: &[u8] = include_bytes!("../../sounds/ping.mp3");
+pub const DEFAULT_PING: &[u8] = include_bytes!("../../sounds/ping.wav");
 
 /// Static sound data stored in memory.
 /// It is `Arc`'ed, so cheap to clone.
