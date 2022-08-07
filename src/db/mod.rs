@@ -1,5 +1,4 @@
 use std::{
-    path::PathBuf,
     sync::mpsc::{self, Sender},
     thread::Builder,
 };
@@ -12,22 +11,19 @@ use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::params;
 use rusqlite_migration::{Migrations, M};
 
-use crate::SETTINGS;
-
-const DEFAULT_LOG_PATH: &str = "arcdps_chat_log.db";
-
 pub struct ChatDatabase {
     pub connection_pool: Option<Pool<SqliteConnectionManager>>,
     pub insert_channel: Option<Sender<ChatMessageInfoOwned>>,
+    // game_start: i64,
 }
 
 impl ChatDatabase {
-    pub fn try_new() -> Result<Self, anyhow::Error> {
+    pub fn try_new(log_path: &str, game_start: i64) -> anyhow::Result<Self> {
         let migrations = Migrations::new(vec![M::up(include_str!(
-            "../migrations/2022-08-07-create-messages.sql"
+            "../../migrations/2022-08-07-create-messages.sql"
         ))]);
 
-        let manager = SqliteConnectionManager::file(&Self::log_path());
+        let manager = SqliteConnectionManager::file(log_path);
         let pool = Pool::new(manager).context("failed to create pool")?;
         let mut connection = pool.get().context("failed to get database connection")?;
 
@@ -43,16 +39,19 @@ impl ChatDatabase {
         let clone_pool = pool.clone();
         let _insert_thread = Builder::new()
             .name("chat_insert".to_owned())
-            .spawn(move || match Self::insert_thread(clone_pool, insert_recv) {
-                Ok(_) => {}
-                Err(err) => {
-                    error!("insert thread failed: {}", err);
-                }
-            });
+            .spawn(
+                move || match Self::insert_thread(game_start, clone_pool, insert_recv) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        error!("insert thread failed: {}", err);
+                    }
+                },
+            );
 
         Ok(Self {
             connection_pool: Some(pool),
             insert_channel: Some(insert_send),
+            // game_start,
         })
     }
 
@@ -70,35 +69,14 @@ impl ChatDatabase {
             // take channel out to drop it out of scope
             // this should cause the recv channel to close and the pool
             let _ = self.insert_channel.take();
-            // take pool out ot drop it out of scope
+            // take pool out to drop it out of scope
             // this should close all connections
             let _ = self.connection_pool.take();
         }
     }
 
-    fn log_path() -> String {
-        SETTINGS
-            .get()
-            .unwrap()
-            .lock()
-            .unwrap()
-            .load_data("log_path")
-            .unwrap_or_else(|| Self::default_log_path().to_str().unwrap().to_string())
-    }
-
-    fn default_log_path() -> PathBuf {
-        arcdps::exports::config_path()
-            .map(|mut path| {
-                if !path.is_dir() {
-                    path.pop();
-                }
-                path.push(DEFAULT_LOG_PATH);
-                path
-            })
-            .unwrap()
-    }
-
     fn insert_thread(
+        game_start: i64,
         pool: Pool<SqliteConnectionManager>,
         recv_chan: mpsc::Receiver<ChatMessageInfoOwned>,
     ) -> anyhow::Result<()> {
@@ -128,9 +106,7 @@ impl ChatDatabase {
                             message.account_name,
                             message.character_name,
                             message.text,
-                            crate::GAME_START
-                                .get()
-                                .context("could not get game start")?
+                            game_start
                         ],
                     )
                     .context("failed to insert message")?;

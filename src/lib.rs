@@ -1,30 +1,27 @@
 mod db;
+mod logui;
+mod notifications;
 mod panic_handler;
-
-#[macro_use]
-extern crate simple_error;
+mod plugin;
 
 use arcdps::extras::{message::ChatMessageInfo, ExtrasAddonInfo};
-use db::ChatDatabase;
+use arcdps::imgui::Ui;
 use log::*;
+use plugin::Plugin;
 
 use std::sync::Mutex;
 
 use anyhow::{Context, Result};
-use arc_util::settings::Settings;
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 
-const SETTINGS_FILE: &str = "arcdps_chat_log.json";
-
-static SETTINGS: OnceCell<Mutex<Settings>> = OnceCell::new();
-static DB: OnceCell<Mutex<ChatDatabase>> = OnceCell::new();
-static GAME_START: OnceCell<i64> = OnceCell::new();
+static PLUGIN: Lazy<Mutex<Plugin>> = Lazy::new(|| Mutex::new(Plugin::new()));
 
 arcdps::export! {
     name: "Chat Log",
     sig: 0x23affe80u32,
     init,
     release,
+    options_end,
     extras_init: extras_init,
     extras_chat_message: extras_chat_callback,
 }
@@ -42,49 +39,30 @@ fn extras_chat_callback(chat_message_info: &ChatMessageInfo) {
 }
 
 fn internal_chat_callback(chat_message_info: &ChatMessageInfo) -> Result<(), anyhow::Error> {
-    DB.get()
-        .context("failed to get database")?
-        .lock()
-        .unwrap()
-        .process_message(chat_message_info)
-        .context("failed to process message")?;
+    PLUGIN.lock().unwrap().process_message(chat_message_info)?;
     Ok(())
+}
+
+fn options_end(ui: &Ui) {
+    if let Err(err) = PLUGIN.lock().unwrap().render_settings(ui) {
+        error!("failed while rendering settings: {}", err);
+    }
 }
 
 fn init() -> Result<(), Box<dyn std::error::Error>> {
     debug!("arc init");
     panic_handler::install_panic_handler();
 
-    if GAME_START.set(chrono::Utc::now().timestamp()).is_err() {
-        bail!("game start init twice");
-    };
-
-    if SETTINGS
-        .set(Mutex::new(Settings::from_file(SETTINGS_FILE)))
-        .is_err()
-    {
-        // This shouldn't be possible unless init is called twice
-        bail!("settings init twice");
-    };
-
-    if DB
-        .set(Mutex::new(
-            ChatDatabase::try_new().context("failed to init database")?,
-        ))
-        .is_err()
-    {
-        bail!("database init twice");
-    }
+    PLUGIN
+        .lock()
+        .unwrap()
+        .load()
+        .context("failed to load plugin")?;
 
     Ok(())
 }
 
 fn release() {
     debug!("release called");
-    if let Some(mutex) = DB.get() {
-        mutex.lock().unwrap().release();
-    }
-    if let Some(settings) = SETTINGS.get() {
-        settings.lock().unwrap().save_file();
-    }
+    PLUGIN.lock().unwrap().release();
 }
