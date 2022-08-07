@@ -19,9 +19,14 @@ pub struct ChatDatabase {
 
 impl ChatDatabase {
     pub fn try_new(log_path: &str, game_start: i64) -> anyhow::Result<Self> {
-        let migrations = Migrations::new(vec![M::up(include_str!(
-            "../../migrations/2022-08-07-create-messages.sql"
-        ))]);
+        let migrations = Migrations::new(vec![
+            M::up(include_str!(
+                "../../migrations/2022-08-07-create-messages.sql"
+            )),
+            M::up(include_str!(
+                "../../migrations/2022-08-07-messages-timestamp-index.sql"
+            )),
+        ]);
 
         let manager = SqliteConnectionManager::file(log_path);
         let pool = Pool::new(manager).context("failed to create pool")?;
