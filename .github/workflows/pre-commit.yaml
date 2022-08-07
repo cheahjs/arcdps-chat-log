@@ -91,4 +91,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: arcdps-chat-log-debug
-          path: target/debug/arcdps-chat-log.dll
+          path: target/debug/arcdps_chat_log.dll
