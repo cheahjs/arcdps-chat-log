@@ -8,6 +8,7 @@ mod plugin;
 use arcdps::extras::{message::ChatMessageInfo, ExtrasAddonInfo};
 use arcdps::imgui::Ui;
 use log::*;
+use mumblelink::MumbleLink;
 use plugin::Plugin;
 
 use std::sync::Mutex;
@@ -16,6 +17,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 
 static PLUGIN: Lazy<Mutex<Plugin>> = Lazy::new(|| Mutex::new(Plugin::new()));
+static MUMBLE_LINK: Lazy<Mutex<MumbleLink>> = Lazy::new(|| Mutex::new(MumbleLink::new().unwrap()));
 
 arcdps::export! {
     name: "Chat Log",
