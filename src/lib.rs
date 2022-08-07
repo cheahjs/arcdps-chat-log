@@ -15,7 +15,6 @@ use arc_util::settings::Settings;
 use once_cell::sync::OnceCell;
 
 const SETTINGS_FILE: &str = "arcdps_chat_log.json";
-const DEFAULT_LOG_PATH: &str = "chatlogs";
 
 static SETTINGS: OnceCell<Mutex<Settings>> = OnceCell::new();
 static DB: OnceCell<Mutex<ChatDatabase>> = OnceCell::new();
@@ -25,6 +24,7 @@ arcdps::export! {
     name: "Chat Log",
     sig: 0x23affe80u32,
     init,
+    release,
     extras_init: extras_init,
     extras_chat_message: extras_chat_callback,
 }
@@ -32,6 +32,7 @@ arcdps::export! {
 fn extras_init(_addon_info: ExtrasAddonInfo, _account_name: Option<&'static str>) {}
 
 fn extras_chat_callback(chat_message_info: &ChatMessageInfo) {
+    debug!("chat callback: {:?}", chat_message_info);
     match internal_chat_callback(chat_message_info) {
         Ok(_) => {}
         Err(err) => {
@@ -76,4 +77,14 @@ fn init() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn release() {
+    debug!("release called");
+    if let Some(mutex) = DB.get() {
+        mutex.lock().unwrap().release();
+    }
+    if let Some(settings) = SETTINGS.get() {
+        settings.lock().unwrap().save_file();
+    }
 }
