@@ -15,6 +15,7 @@ use arc_util::settings::Settings;
 use once_cell::sync::OnceCell;
 
 const SETTINGS_FILE: &str = "arcdps_chat_log.json";
+const DEFAULT_LOG_PATH: &str = "chatlogs";
 
 static SETTINGS: OnceCell<Mutex<Settings>> = OnceCell::new();
 static DB: OnceCell<Mutex<ChatDatabase>> = OnceCell::new();
