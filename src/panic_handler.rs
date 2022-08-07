@@ -61,7 +61,7 @@ fn panic_handler(panic_info: &std::panic::PanicInfo) {
                 .ImageName
                 .iter()
                 .take_while(|c| **c != 0) // truncate string to null termination
-                .map(|c| *c)
+                .copied()
                 .collect::<Vec<_>>()
                 .as_slice(),
         ));
