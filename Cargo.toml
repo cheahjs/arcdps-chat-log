@@ -40,3 +40,7 @@ arcdps-codegen = { branch = "safe-message-callbacks", git = "https://github.com/
 
 [build-dependencies]
 winres = "0.1"
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
