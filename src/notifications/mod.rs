@@ -2,9 +2,10 @@ use anyhow::Context;
 use arc_util::ui::Component;
 use arcdps::imgui::Ui;
 
-use self::{audio::AudioTrack, settings::NotificationsSettings};
+use crate::audio::{sounds, AudioTrack};
 
-mod audio;
+use self::settings::NotificationsSettings;
+
 mod events;
 mod settings;
 
@@ -25,7 +26,11 @@ impl Notifications {
     pub fn load(&mut self) -> Result<(), anyhow::Error> {
         let mut ping_track = AudioTrack::new();
         ping_track
-            .load_from_path(&self.settings.ping_sound_path, audio::DEFAULT_PING)
+            .load_from_path(
+                &self.settings.ping_sound_path,
+                sounds::DEFAULT_PING,
+                self.settings.ping_volume,
+            )
             .context("failed to load ping track")?;
         self.ping_track = Some(ping_track);
         Ok(())

@@ -1,3 +1,4 @@
+mod audio;
 mod db;
 mod logui;
 mod mumblelink;
@@ -7,6 +8,7 @@ mod plugin;
 
 use arcdps::extras::{message::ChatMessageInfo, ExtrasAddonInfo};
 use arcdps::imgui::Ui;
+use audio::player::AudioPlayer;
 use log::*;
 use mumblelink::MumbleLink;
 use plugin::Plugin;
@@ -18,6 +20,7 @@ use once_cell::sync::Lazy;
 
 static PLUGIN: Lazy<Mutex<Plugin>> = Lazy::new(|| Mutex::new(Plugin::new()));
 static MUMBLE_LINK: Lazy<Mutex<MumbleLink>> = Lazy::new(|| Mutex::new(MumbleLink::new().unwrap()));
+static AUDIO_PLAYER: Lazy<Mutex<AudioPlayer>> = Lazy::new(|| Mutex::new(AudioPlayer::new()));
 
 arcdps::export! {
     name: "Chat Log",
@@ -68,4 +71,5 @@ fn init() -> Result<(), Box<dyn std::error::Error>> {
 fn release() {
     debug!("release called");
     PLUGIN.lock().unwrap().release();
+    AUDIO_PLAYER.lock().unwrap().release();
 }

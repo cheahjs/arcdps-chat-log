@@ -5,7 +5,7 @@ use crate::{mumblelink::LinkedMem, MUMBLE_LINK};
 use super::Notifications;
 
 impl Notifications {
-    pub fn process_message(&self, _message: &ChatMessageInfo) -> Result<(), anyhow::Error> {
+    pub fn process_message(&mut self, _message: &ChatMessageInfo) -> Result<(), anyhow::Error> {
         if !self.settings.ping_on_all_new_messages {
             return Ok(());
         }
@@ -20,9 +20,10 @@ impl Notifications {
         Ok(())
     }
 
-    pub fn ping(&self) {
-        if let Some(ping_track) = &self.ping_track {
-            ping_track.play(self.settings.ping_volume);
+    pub fn ping(&mut self) {
+        if let Some(ping_track) = &mut self.ping_track {
+            ping_track.set_volume(self.settings.ping_volume);
+            crate::AUDIO_PLAYER.lock().unwrap().play_track(ping_track);
         }
     }
 }

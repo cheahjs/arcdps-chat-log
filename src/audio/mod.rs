@@ -1,16 +1,16 @@
+pub mod player;
+pub mod sounds;
+
 use std::{
     fs::File,
     io::{Cursor, Read},
     path,
     sync::Arc,
-    thread,
 };
 
 use anyhow::Context;
-use log::{debug, error, info};
-use rodio::Decoder;
-
-pub const DEFAULT_PING: &[u8] = include_bytes!("../../sounds/ping.wav");
+use log::{debug, info};
+use rodio::{Decoder, OutputStreamHandle, Sink};
 
 /// Static sound data stored in memory.
 /// It is `Arc`'ed, so cheap to clone.
@@ -69,10 +69,12 @@ impl AsRef<[u8]> for SoundData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AudioTrack {
     data: Option<Cursor<SoundData>>,
     pub status_message: String,
+    path: String,
+    volume: i32,
 }
 
 impl AudioTrack {
@@ -80,10 +82,19 @@ impl AudioTrack {
         Self {
             data: None,
             status_message: "".to_string(),
+            path: "".to_string(),
+            volume: 100,
         }
     }
 
-    pub fn load_from_path(&mut self, path: &str, default: &'static [u8]) -> anyhow::Result<()> {
+    pub fn load_from_path(
+        &mut self,
+        path: &str,
+        default: &'static [u8],
+        volume: i32,
+    ) -> anyhow::Result<()> {
+        self.path = path.to_string();
+        self.volume = volume;
         if path.is_empty() {
             self.data = Some(Cursor::new(SoundData::from_bytes(default)));
         } else {
@@ -109,27 +120,31 @@ impl AudioTrack {
         Ok(())
     }
 
-    pub fn play(&self, volume: i32) {
-        debug!("playing sound");
-        if self.data.is_none() {
-            info!("no sound data to play: {}", self.status_message);
-            return;
-        }
-        let data = self.data.as_ref().unwrap().clone();
-        thread::spawn(move || match Self::internal_play(data, volume) {
-            Ok(_) => debug!("sound played"),
-            Err(err) => error!("failed to play sound: {}", err),
-        });
+    pub fn set_volume(&mut self, volume: i32) {
+        self.volume = volume;
     }
 
-    fn internal_play(data: Cursor<SoundData>, volume: i32) -> anyhow::Result<()> {
-        let (_stream, stream_handle) =
-            rodio::OutputStream::try_default().context("failed to init stream")?;
-        let sink = stream_handle
-            .play_once(data)
-            .context("failed to start playing")?;
-        sink.set_volume(volume as f32 / 100f32);
-        sink.sleep_until_end();
-        Ok(())
+    pub fn play(self, stream_handle: &OutputStreamHandle) -> anyhow::Result<()> {
+        debug!("playing sound {}", self.path);
+        match self.data {
+            Some(data) => {
+                let input =
+                    Decoder::new(data).context(format!("failed to decode {}", self.path))?;
+                let sink = Sink::try_new(stream_handle)
+                    .context(format!("failed to create sink {}", self.path))?;
+                sink.set_volume(self.volume as f32 / 100f32);
+                sink.append(input);
+                sink.detach();
+                Ok(())
+            }
+            None => {
+                info!("no sound data to play: {}", self.status_message);
+                return Err(anyhow::anyhow!(
+                    "no sound data to play for {}: {}",
+                    self.path,
+                    self.status_message
+                ));
+            }
+        }
     }
 }
