@@ -19,7 +19,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 
 static PLUGIN: Lazy<Mutex<Plugin>> = Lazy::new(|| Mutex::new(Plugin::new()));
-static MUMBLE_LINK: Lazy<Mutex<MumbleLink>> = Lazy::new(|| Mutex::new(MumbleLink::new().unwrap()));
+static MUMBLE_LINK: Lazy<Mutex<MumbleLink>> = Lazy::new(|| Mutex::new(MumbleLink::new()));
 static AUDIO_PLAYER: Lazy<Mutex<AudioPlayer>> = Lazy::new(|| Mutex::new(AudioPlayer::new()));
 
 arcdps::export! {
@@ -32,7 +32,12 @@ arcdps::export! {
     extras_chat_message: extras_chat_callback,
 }
 
-fn extras_init(_addon_info: ExtrasAddonInfo, _account_name: Option<&'static str>) {}
+fn extras_init(addon_info: ExtrasAddonInfo, account_name: Option<&'static str>) {
+    PLUGIN
+        .lock()
+        .unwrap()
+        .extras_init(&addon_info, account_name);
+}
 
 fn extras_chat_callback(chat_message_info: &ChatMessageInfo) {
     debug!("chat callback: {:?}", chat_message_info);
@@ -45,8 +50,7 @@ fn extras_chat_callback(chat_message_info: &ChatMessageInfo) {
 }
 
 fn internal_chat_callback(chat_message_info: &ChatMessageInfo) -> Result<(), anyhow::Error> {
-    PLUGIN.lock().unwrap().process_message(chat_message_info)?;
-    Ok(())
+    PLUGIN.lock().unwrap().process_message(chat_message_info)
 }
 
 fn options_end(ui: &Ui) {

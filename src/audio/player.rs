@@ -29,7 +29,6 @@ impl AudioPlayer {
         if let Some(sender) = &self.sender {
             if let Err(err) = sender.send(AudioSignal::PlayTrack(track.clone())) {
                 error!("error sending audio: {}", err);
-                
             }
         }
     }

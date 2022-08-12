@@ -1,7 +1,7 @@
-use arcdps::extras::message::ChatMessageInfo;
+use arcdps::extras::{message::ChatMessageInfo, ExtrasAddonInfo};
 use log::error;
 
-use super::Plugin;
+use super::{state::ExtrasState, Plugin};
 
 impl Plugin {
     pub fn process_message(
@@ -18,5 +18,20 @@ impl Plugin {
             chat_database.process_message(chat_message_info)?;
         }
         Ok(())
+    }
+
+    pub fn extras_init(
+        &mut self,
+        addon_info: &ExtrasAddonInfo,
+        account_name: Option<&'static str>,
+    ) {
+        if addon_info.check_compat() {
+            self.ui_state.extras_state = ExtrasState::Loaded;
+        } else {
+            self.ui_state.extras_state = ExtrasState::Incompatible;
+        }
+        if let Some(account_name) = account_name {
+            self.self_account_name = account_name.to_string();
+        }
     }
 }

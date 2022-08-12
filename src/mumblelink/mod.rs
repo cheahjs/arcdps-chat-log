@@ -1,6 +1,8 @@
 use std::{io, mem, ptr};
 
+use anyhow::bail;
 use bitflags::bitflags;
+use log::debug;
 use winapi::ctypes::{c_void, wchar_t};
 
 struct LinkHandle(*mut c_void);
@@ -76,14 +78,28 @@ pub struct LinkedMem {
 }
 
 pub struct MumbleLink {
-    handle: LinkHandle,
-    linked_mem: LinkHandle,
+    handle: Option<LinkHandle>,
+    linked_mem: Option<LinkHandle>,
 }
 
 impl MumbleLink {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> Self {
+        Self {
+            handle: None,
+            linked_mem: None,
+        }
+    }
+
+    pub fn load(&mut self) -> anyhow::Result<()> {
         let linked_mem_size = mem::size_of::<LinkedMem>();
-        let shared_file: Vec<wchar_t> = "MumbleLink\0".chars().map(|c| c as wchar_t).collect();
+        let mumble_link_name = Self::get_mumble_link_name();
+        if mumble_link_name == "0" {
+            bail!("mumblelink is disabled");
+        }
+        debug!("mumblelink name: {}", mumble_link_name);
+        let mut shared_file: Vec<wchar_t> =
+            mumble_link_name.chars().map(|c| c as wchar_t).collect();
+        shared_file.push(0);
 
         unsafe {
             let handle = kernel32::CreateFileMappingW(
@@ -110,22 +126,35 @@ impl MumbleLink {
                 return Err(io::Error::last_os_error().into());
             }
 
-            Ok(Self {
-                handle: LinkHandle(handle),
-                linked_mem: LinkHandle(pointer),
-            })
+            self.handle = Some(LinkHandle(handle));
+            self.linked_mem = Some(LinkHandle(pointer));
+            Ok(())
         }
     }
 
-    pub fn tick(&mut self) -> LinkedMem {
-        unsafe { ptr::read_volatile(self.linked_mem.0 as *const LinkedMem) }
+    pub fn tick(&mut self) -> Option<LinkedMem> {
+        if let Some(linked_mem) = self.linked_mem.as_ref() {
+            unsafe {
+                return Some(ptr::read_volatile(linked_mem.0 as *const LinkedMem));
+            }
+        }
+        None
+    }
+
+    fn get_mumble_link_name() -> String {
+        std::env::args()
+            .skip_while(|arg| arg != "-mumble")
+            .nth(1)
+            .unwrap_or_else(|| "MumbleLink".to_string())
     }
 }
 
 impl Drop for MumbleLink {
     fn drop(&mut self) {
-        unsafe {
-            kernel32::CloseHandle(self.handle.0);
+        if let Some(handle) = self.handle.as_ref() {
+            unsafe {
+                kernel32::CloseHandle(handle.0);
+            }
         }
     }
 }

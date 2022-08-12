@@ -139,11 +139,11 @@ impl AudioTrack {
             }
             None => {
                 info!("no sound data to play: {}", self.status_message);
-                return Err(anyhow::anyhow!(
+                Err(anyhow::anyhow!(
                     "no sound data to play for {}: {}",
                     self.path,
                     self.status_message
-                ));
+                ))
             }
         }
     }

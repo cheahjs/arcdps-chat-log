@@ -1,11 +1,19 @@
 mod events;
 mod settings;
+pub mod state;
 
 use anyhow::Context;
 use arc_util::settings::Settings;
-use log::info;
+use log::{error, info};
 
-use crate::{db::ChatDatabase, logui::LogUi, notifications::Notifications};
+use crate::{
+    db::ChatDatabase,
+    logui::LogUi,
+    notifications::Notifications,
+    plugin::state::{MumbleLinkState, NotificationsState},
+};
+
+use self::state::UiState;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -14,6 +22,8 @@ const SETTINGS_FILE: &str = "arcdps_chat_log.json";
 pub struct Plugin {
     pub log_ui: LogUi,
     pub notifications: Notifications,
+    pub ui_state: UiState,
+    pub self_account_name: String,
     game_start: i64,
     chat_database: Option<ChatDatabase>,
 }
@@ -23,6 +33,8 @@ impl Plugin {
         Self {
             log_ui: LogUi::new(),
             notifications: Notifications::new(),
+            ui_state: UiState::new(),
+            self_account_name: "".to_string(),
             game_start: chrono::Utc::now().timestamp(),
             chat_database: None,
         }
@@ -36,14 +48,32 @@ impl Plugin {
         settings.load_component(&mut self.log_ui);
         settings.load_component(&mut self.notifications);
 
-        self.chat_database = Some(
-            ChatDatabase::try_new(&self.log_ui.settings.log_path, self.game_start)
-                .context("failed to init database")?,
-        );
+        match ChatDatabase::try_new(&self.log_ui.settings.log_path, self.game_start)
+            .context("failed to init database")
+        {
+            Ok(chat_database) => self.chat_database = Some(chat_database),
+            Err(err) => error!("{}", err),
+        }
 
-        self.notifications
+        match self
+            .notifications
             .load()
-            .context("failed to load notifications module")?;
+            .context("failed to load notifications module")
+        {
+            Ok(_) => self.ui_state.notifications_state = NotificationsState::Loaded,
+            Err(err) => {
+                self.ui_state.notifications_state = NotificationsState::Errored;
+                error!("{}", err)
+            }
+        }
+
+        match crate::MUMBLE_LINK.lock().unwrap().load() {
+            Ok(_) => self.ui_state.mumblelink_state = MumbleLinkState::Loaded,
+            Err(err) => {
+                self.ui_state.mumblelink_state = MumbleLinkState::Errored;
+                error!("{}", err)
+            }
+        }
 
         Ok(())
     }

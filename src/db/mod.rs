@@ -12,6 +12,7 @@ use rusqlite::params;
 use rusqlite_migration::{Migrations, M};
 
 pub struct ChatDatabase {
+    pub log_path: String,
     pub connection_pool: Option<Pool<SqliteConnectionManager>>,
     pub insert_channel: Option<Sender<ChatMessageInfoOwned>>,
     // game_start: i64,
@@ -54,6 +55,7 @@ impl ChatDatabase {
             );
 
         Ok(Self {
+            log_path: log_path.to_string(),
             connection_pool: Some(pool),
             insert_channel: Some(insert_send),
             // game_start,
@@ -89,8 +91,8 @@ impl ChatDatabase {
         loop {
             let event = recv_chan.recv();
             if let Ok(message) = event {
-                connection
-                    .execute(
+                let mut statement = connection
+                    .prepare_cached(
                         "INSERT INTO messages (
                                             channel_id,
                                             channel_type,
@@ -102,18 +104,20 @@ impl ChatDatabase {
                                             text,
                                             game_start
                                      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                        params![
-                            message.channel_id,
-                            message.channel_type.to_string(),
-                            message.subgroup,
-                            message.is_broadcast,
-                            message.timestamp,
-                            message.account_name,
-                            message.character_name,
-                            message.text,
-                            game_start
-                        ],
                     )
+                    .context("failed to prepare statement")?;
+                statement
+                    .execute(params![
+                        message.channel_id,
+                        message.channel_type.to_string(),
+                        message.subgroup,
+                        message.is_broadcast,
+                        message.timestamp,
+                        message.account_name,
+                        message.character_name,
+                        message.text,
+                        game_start
+                    ])
                     .context("failed to insert message")?;
             } else if let Err(err) = event {
                 return Err(anyhow::Error::new(err).context("failed to receive insert event"));
