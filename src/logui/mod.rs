@@ -18,10 +18,8 @@ impl LogUi {
     }
 }
 
-impl Component<'_> for LogUi {
-    type Props = ();
-
-    fn render(&mut self, _ui: &Ui, _props: &Self::Props) {}
+impl Component<()> for LogUi {
+    fn render(&mut self, _ui: &Ui, _props: ()) {}
 }
 
 impl Default for LogUi {

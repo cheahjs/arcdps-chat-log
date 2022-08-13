@@ -32,7 +32,7 @@ arcdps::export! {
     extras_chat_message: extras_chat_callback,
 }
 
-fn extras_init(addon_info: ExtrasAddonInfo, account_name: Option<&'static str>) {
+fn extras_init(addon_info: ExtrasAddonInfo, account_name: Option<&str>) {
     PLUGIN
         .lock()
         .unwrap()
