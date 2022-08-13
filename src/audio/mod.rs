@@ -81,7 +81,7 @@ impl AudioTrack {
     pub fn new() -> Self {
         Self {
             data: None,
-            status_message: "".to_string(),
+            status_message: "Track not loaded yet".to_string(),
             path: "".to_string(),
             volume: 100,
         }
@@ -122,6 +122,10 @@ impl AudioTrack {
 
     pub fn set_volume(&mut self, volume: i32) {
         self.volume = volume;
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.data.is_some()
     }
 
     pub fn play(self, stream_handle: &OutputStreamHandle) -> anyhow::Result<()> {

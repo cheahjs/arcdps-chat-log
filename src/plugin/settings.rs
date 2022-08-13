@@ -6,6 +6,7 @@ use arcdps::{
     exports::{self, CoreColor},
     imgui::Slider,
 };
+use log::error;
 
 use super::Plugin;
 
@@ -121,9 +122,30 @@ impl Plugin {
                 Slider::new("Ping volume", 0, 100)
                     .build(ui, &mut self.notifications.settings.ping_volume);
 
+                ui.input_text(
+                    "Ping sound path (blank for default)",
+                    &mut self.notifications.settings.ping_sound_path,
+                )
+                .build();
+                if ui.is_item_deactivated_after_edit() {
+                    if let Err(err) = self.notifications.update_ping_track() {
+                        error!("failed to update ping track: {}", err);
+                    }
+                }
+
                 if ui.button("Play sound") {
                     self.notifications.ping();
                 }
+
+                ui.group(|| {
+                    ui.text("Status:");
+                    ui.same_line();
+                    if self.notifications.ping_track.is_valid() {
+                        ui.text_colored(green, &self.notifications.ping_track.status_message)
+                    } else {
+                        ui.text_colored(red, &self.notifications.ping_track.status_message)
+                    }
+                });
             }
             tab_bar.end();
         }

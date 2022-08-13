@@ -27,9 +27,13 @@ impl Notifications {
     }
 
     pub fn ping(&mut self) {
-        if let Some(ping_track) = &mut self.ping_track {
-            ping_track.set_volume(self.settings.ping_volume);
-            crate::AUDIO_PLAYER.lock().unwrap().play_track(ping_track);
+        if !self.ping_track.is_valid() {
+            return;
         }
+        self.ping_track.set_volume(self.settings.ping_volume);
+        crate::AUDIO_PLAYER
+            .lock()
+            .unwrap()
+            .play_track(&self.ping_track);
     }
 }
