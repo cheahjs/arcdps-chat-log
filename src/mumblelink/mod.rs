@@ -90,7 +90,7 @@ impl MumbleLink {
         }
     }
 
-    pub fn load(&mut self) -> anyhow::Result<()> {
+    pub fn load(&mut self) -> anyhow::Result<String> {
         let linked_mem_size = mem::size_of::<LinkedMem>();
         let mumble_link_name = Self::get_mumble_link_name();
         if mumble_link_name == "0" {
@@ -128,7 +128,7 @@ impl MumbleLink {
 
             self.handle = Some(LinkHandle(handle));
             self.linked_mem = Some(LinkHandle(pointer));
-            Ok(())
+            Ok(mumble_link_name)
         }
     }
 

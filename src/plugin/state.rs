@@ -14,7 +14,7 @@ pub enum NotificationsState {
 
 #[derive(Debug)]
 pub enum MumbleLinkState {
-    Loaded,
+    Loaded(String),
     Errored,
     Unknown,
 }

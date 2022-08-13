@@ -68,7 +68,9 @@ impl Plugin {
         }
 
         match crate::MUMBLE_LINK.lock().unwrap().load() {
-            Ok(_) => self.ui_state.mumblelink_state = MumbleLinkState::Loaded,
+            Ok(mumble_link_name) => {
+                self.ui_state.mumblelink_state = MumbleLinkState::Loaded(mumble_link_name)
+            }
             Err(err) => {
                 self.ui_state.mumblelink_state = MumbleLinkState::Errored;
                 error!("{}", err)

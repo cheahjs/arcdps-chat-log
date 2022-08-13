@@ -81,8 +81,10 @@ impl Plugin {
                 ui.group(|| {
                     ui.text("MumbleLink:");
                     ui.same_line();
-                    match self.ui_state.mumblelink_state {
-                        super::state::MumbleLinkState::Loaded => ui.text_colored(green, "Loaded"),
+                    match &self.ui_state.mumblelink_state {
+                        super::state::MumbleLinkState::Loaded(mumblelink_name) => {
+                            ui.text_colored(green, format!("Loaded ({})", mumblelink_name))
+                        }
                         super::state::MumbleLinkState::Errored => {
                             ui.text_colored(red, "Error - check the logs")
                         }
