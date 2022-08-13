@@ -70,7 +70,7 @@ name = "arc_util"
 version = "0.9.0"
 source = "git+https://github.com/zerthox/arcdps-utils?branch=master#af19859e34887c149dbd3bbec200bd6c6dcf6885"
 dependencies = [
- "arcdps 0.8.1 (git+https://github.com/zerthox/arcdps-bindings)",
+ "arcdps",
  "chrono",
  "serde",
  "serde_json",
@@ -80,9 +80,9 @@ dependencies = [
 [[package]]
 name = "arcdps"
 version = "0.8.1"
-source = "git+https://github.com/zerthox/arcdps-bindings?branch=master#194d61464a2318aa4ef044a05dff949c4959cda7"
+source = "git+https://github.com/zerthox/arcdps-bindings#194d61464a2318aa4ef044a05dff949c4959cda7"
 dependencies = [
- "arcdps-codegen 0.8.0 (git+https://github.com/zerthox/arcdps-bindings?branch=master)",
+ "arcdps-codegen",
  "arcdps-imgui",
  "chrono",
  "log",
@@ -93,25 +93,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "arcdps"
-version = "0.8.1"
-source = "git+https://github.com/zerthox/arcdps-bindings#194d61464a2318aa4ef044a05dff949c4959cda7"
-dependencies = [
- "arcdps-codegen 0.8.0 (git+https://github.com/zerthox/arcdps-bindings)",
- "arcdps-imgui",
- "chrono",
- "num_enum",
- "serde",
- "windows",
-]
-
-[[package]]
 name = "arcdps-chat-log"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc_util",
- "arcdps 0.8.1 (git+https://github.com/zerthox/arcdps-bindings?branch=master)",
+ "arcdps",
  "backtrace",
  "bitflags",
  "chrono",
@@ -128,18 +115,6 @@ dependencies = [
  "simple-error",
  "winapi 0.3.9",
  "winres",
-]
-
-[[package]]
-name = "arcdps-codegen"
-version = "0.8.0"
-source = "git+https://github.com/zerthox/arcdps-bindings?branch=master#194d61464a2318aa4ef044a05dff949c4959cda7"
-dependencies = [
- "cfg-if",
- "paste",
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
