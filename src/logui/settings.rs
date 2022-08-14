@@ -7,11 +7,39 @@ use super::LogUi;
 
 const DEFAULT_LOG_PATH: &str = "arcdps_chat_log.db";
 
+#[derive(Debug, Clone, Serialize, Deserialize, Copy)]
+#[serde(default)]
+pub struct ColorSettings {
+    pub squad_chat: [f32; 4],
+    pub squad_user: [f32; 4],
+    pub party_chat: [f32; 4],
+    pub party_user: [f32; 4],
+}
+
+impl ColorSettings {
+    pub fn new() -> Self {
+        Self {
+            squad_chat: [205.0 / 255.0, 255.0 / 255.0, 239.0 / 255.0, 1.0],
+            party_chat: [188.0 / 255.0, 222.0 / 255.0, 255.0 / 255.0, 1.0],
+            squad_user: [192.0 / 255.0, 241.0 / 255.0, 97.0 / 255.0, 1.0],
+            party_user: [68.0 / 255.0, 188.0 / 255.0, 255.0 / 255.0, 1.0],
+        }
+    }
+}
+
+impl Default for ColorSettings {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ChatLogSettings {
     pub log_enabled: bool,
     pub log_path: String,
+    pub log_buffer: i32,
+    pub color_settings: ColorSettings,
 }
 
 impl ChatLogSettings {
@@ -19,6 +47,8 @@ impl ChatLogSettings {
         Self {
             log_enabled: true,
             log_path: Self::default_log_path().to_str().unwrap().to_string(),
+            log_buffer: 10000,
+            color_settings: ColorSettings::new(),
         }
     }
 
@@ -52,5 +82,6 @@ impl HasSettings for LogUi {
 
     fn load_settings(&mut self, loaded: Self::Settings) {
         self.settings = loaded;
+        self.update_settings();
     }
 }

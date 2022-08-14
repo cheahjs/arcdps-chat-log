@@ -9,6 +9,7 @@ pub struct NotificationsSettings {
     pub ping_volume: i32,
     pub ping_sound_path: String,
     pub ping_on_all_new_messages: bool,
+    pub ping_on_self_message: bool,
     pub ping_in_combat: bool,
     pub ping_out_of_combat: bool,
 }
@@ -17,8 +18,9 @@ impl NotificationsSettings {
     pub fn new() -> Self {
         Self {
             ping_volume: 100,
-            ping_sound_path: "".to_owned(),
+            ping_sound_path: String::new(),
             ping_on_all_new_messages: false,
+            ping_on_self_message: false,
             ping_in_combat: true,
             ping_out_of_combat: true,
         }

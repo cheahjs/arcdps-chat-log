@@ -1,25 +1,26 @@
-use arc_util::ui::Component;
-use arcdps::imgui::Ui;
+use self::{buffer::LogBuffer, settings::ChatLogSettings};
 
-use self::settings::ChatLogSettings;
-
+mod buffer;
 mod settings;
+mod ui;
 
 #[derive(Debug)]
 pub struct LogUi {
     pub settings: ChatLogSettings,
+    pub buffer: LogBuffer,
 }
 
 impl LogUi {
     pub fn new() -> Self {
         Self {
             settings: ChatLogSettings::new(),
+            buffer: LogBuffer::new(),
         }
     }
-}
 
-impl Component<()> for LogUi {
-    fn render(&mut self, _ui: &Ui, _props: ()) {}
+    pub fn update_settings(&mut self) {
+        self.buffer.colors = self.settings.color_settings;
+    }
 }
 
 impl Default for LogUi {

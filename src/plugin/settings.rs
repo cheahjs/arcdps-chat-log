@@ -1,6 +1,6 @@
 use arc_util::ui::{
     render::{self},
-    Ui,
+    Hideable, Ui,
 };
 use arcdps::{
     exports::{self, CoreColor},
@@ -11,7 +11,7 @@ use log::error;
 use super::Plugin;
 
 impl Plugin {
-    pub fn render_settings(&mut self, ui: &Ui) -> Result<(), anyhow::Error> {
+    pub fn render_settings(&mut self, ui: &Ui) {
         let colors = exports::colors();
         let grey = colors
             .core(CoreColor::MediumGrey)
@@ -31,7 +31,7 @@ impl Plugin {
 
         ui.spacing();
         ui.separator();
-        if let Some(tab_bar) = ui.tab_bar("chat_settings") {
+        if let Some(_tab_bar) = ui.tab_bar("chat_settings") {
             if let Some(_tab) = ui.tab_item("Status") {
                 ui.text_colored(grey, "Status");
                 ui.group(|| {
@@ -97,17 +97,39 @@ impl Plugin {
                 }
             }
             if let Some(_tab) = ui.tab_item("Logging") {
-                ui.checkbox("Enable chat logging", &mut self.log_ui.settings.log_enabled);
+                ui.checkbox(
+                    "Enable chat logging to database",
+                    &mut self.log_ui.settings.log_enabled,
+                );
                 ui.input_text(
                     "Chat database path (not applied until restart)",
                     &mut self.log_ui.settings.log_path,
                 )
                 .build();
+                ui.set_next_item_width(input_width);
+                if ui
+                    .input_int(
+                        "Number of log messages to keep",
+                        &mut self.log_ui.settings.log_buffer,
+                    )
+                    .build()
+                {
+                    self.log_ui.buffer.buffer_max_size = self.log_ui.settings.log_buffer as usize;
+                }
+                if ui.is_item_hovered() {
+                    ui.tooltip_text(
+                        "This is the number of chat messages and squad updates to keep at a time",
+                    );
+                }
             }
             if let Some(_tab) = ui.tab_item("Notifications") {
                 ui.checkbox(
                     "Ping on incoming messages",
                     &mut self.notifications.settings.ping_on_all_new_messages,
+                );
+                ui.checkbox(
+                    "Ping on self messages",
+                    &mut self.notifications.settings.ping_on_self_message,
                 );
                 ui.checkbox(
                     "Ping while in combat",
@@ -147,8 +169,13 @@ impl Plugin {
                     }
                 });
             }
-            tab_bar.end();
         }
-        Ok(())
+    }
+
+    pub fn render_window_options(&mut self, ui: &Ui, option_name: Option<&str>) -> bool {
+        if option_name.is_none() {
+            ui.checkbox("Squad Log", self.log_ui.visible_mut());
+        }
+        false
     }
 }

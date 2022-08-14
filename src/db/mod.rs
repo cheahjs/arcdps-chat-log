@@ -15,7 +15,6 @@ pub struct ChatDatabase {
     pub log_path: String,
     pub connection_pool: Option<Pool<SqliteConnectionManager>>,
     pub insert_channel: Option<Sender<ChatMessageInfoOwned>>,
-    // game_start: i64,
 }
 
 impl ChatDatabase {

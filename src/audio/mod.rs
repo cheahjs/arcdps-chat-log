@@ -82,7 +82,7 @@ impl AudioTrack {
         Self {
             data: None,
             status_message: "Track not loaded yet".to_string(),
-            path: "".to_string(),
+            path: String::new(),
             volume: 100,
         }
     }
@@ -93,7 +93,7 @@ impl AudioTrack {
         default: &'static [u8],
         volume: i32,
     ) -> anyhow::Result<()> {
-        self.path = path.to_string();
+        self.path = path.to_owned();
         self.volume = volume;
         if path.is_empty() {
             self.data = Some(Cursor::new(SoundData::from_bytes(default)));
