@@ -16,12 +16,21 @@ impl Component<()> for LogUi {
 
         let mut filter = String::new();
         ui.input_text("Filter", &mut filter).build();
+
+        ui.checkbox("Squad", &mut self.settings.filter_settings.squad_message);
+        ui.same_line();
+        ui.checkbox("Party", &mut self.settings.filter_settings.party_message);
+        ui.same_line();
+        ui.checkbox("Updates", &mut self.settings.filter_settings.squad_updates);
+        ui.same_line();
+        ui.checkbox("Others", &mut self.settings.filter_settings.others);
+
         ui.separator();
         if let Some(_child) = ChildWindow::new("chat_log_window").begin(ui) {
             self.buffer
                 .buffer
                 .iter()
-                .filter(|x| x.filter(&filter))
+                .filter(|x| x.filter(&filter, &self.settings.filter_settings))
                 .for_each(|x| x.render(ui));
             if ui.scroll_y() >= ui.scroll_max_y() {
                 ui.set_scroll_here_y_with_ratio(1.0);

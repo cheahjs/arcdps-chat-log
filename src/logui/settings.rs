@@ -9,6 +9,32 @@ const DEFAULT_LOG_PATH: &str = "arcdps_chat_log.db";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Copy)]
 #[serde(default)]
+pub struct FilterSettings {
+    pub squad_message: bool,
+    pub party_message: bool,
+    pub squad_updates: bool,
+    pub others: bool,
+}
+
+impl FilterSettings {
+    pub fn new() -> Self {
+        Self {
+            squad_message: true,
+            party_message: true,
+            squad_updates: true,
+            others: true,
+        }
+    }
+}
+
+impl Default for FilterSettings {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Copy)]
+#[serde(default)]
 pub struct ColorSettings {
     pub squad_chat: [f32; 4],
     pub squad_user: [f32; 4],
@@ -40,6 +66,7 @@ pub struct ChatLogSettings {
     pub log_path: String,
     pub log_buffer: i32,
     pub color_settings: ColorSettings,
+    pub filter_settings: FilterSettings,
 }
 
 impl ChatLogSettings {
@@ -49,6 +76,7 @@ impl ChatLogSettings {
             log_path: Self::default_log_path().to_str().unwrap().to_string(),
             log_buffer: 10000,
             color_settings: ColorSettings::new(),
+            filter_settings: FilterSettings::new(),
         }
     }
 

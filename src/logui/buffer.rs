@@ -2,15 +2,15 @@ use std::collections::VecDeque;
 
 use arc_util::ui::Ui;
 use arcdps::{
-    extras::message::ChatMessageInfo,
+    extras::message::{ChannelType, ChatMessageInfo},
     imgui::{
-        sys::{self, cty::c_char, ImFont_CalcWordWrapPositionA},
+        sys::{self, cty::c_char},
         StyleColor,
     },
 };
 use chrono::Local;
 
-use super::settings::ColorSettings;
+use super::settings::{ColorSettings, FilterSettings};
 
 const TIMESTAMP_FORMAT: &str = "%H:%M:%S";
 
@@ -47,10 +47,9 @@ impl LogPart {
     }
 
     pub fn render(&self, ui: &Ui) {
-        let color_style = match self.color {
-            Some(color) => Some(ui.push_style_color(StyleColor::Text, color)),
-            None => None,
-        };
+        let color_style = self
+            .color
+            .map(|color| ui.push_style_color(StyleColor::Text, color));
 
         let width_left = ui.content_region_avail()[0];
         let end_length: usize;
@@ -141,11 +140,33 @@ impl LogLine {
         ui.new_line();
     }
 
-    pub fn filter(&self, filter: &str) -> bool {
-        if filter.is_empty() {
+    pub fn filter(&self, text: &str, types: &FilterSettings) -> bool {
+        match self.log_type {
+            LogType::Generic => {
+                if !types.others {
+                    return false;
+                }
+            }
+            LogType::SquadMessage => {
+                if !types.squad_message {
+                    return false;
+                }
+            }
+            LogType::PartyMessage => {
+                if !types.party_message {
+                    return false;
+                }
+            }
+            LogType::SquadUpdate => {
+                if !types.squad_updates {
+                    return false;
+                }
+            }
+        }
+        if text.is_empty() {
             return true;
         }
-        self.parts.iter().any(|p| p.filter(filter))
+        self.parts.iter().any(|p| p.filter(text))
     }
 }
 
@@ -171,10 +192,11 @@ impl LogBuffer {
 
     pub fn insert_squad_update(&mut self, line: String) {
         let mut log_line = LogLine::new();
+        log_line.log_type = LogType::SquadUpdate;
         log_line.parts.push(LogPart::new_current_time());
         log_line
             .parts
-            .push(LogPart::new_no_color(&format!(" {}", line)));
+            .push(LogPart::new_no_color(&format!("[Update] {}", line)));
         self.insert_message(log_line)
     }
 
@@ -187,33 +209,40 @@ impl LogBuffer {
 
     fn chat_message_to_line(&self, message: &ChatMessageInfo) -> LogLine {
         let mut line = LogLine::new();
+        line.log_type = match message.channel_type {
+            ChannelType::Party => LogType::PartyMessage,
+            ChannelType::Squad => LogType::SquadMessage,
+            ChannelType::Reserved => LogType::Generic,
+            ChannelType::Invalid => LogType::Generic,
+        };
         let text_color = match message.channel_type {
-            arcdps::extras::message::ChannelType::Party => Some(self.colors.party_chat),
-            arcdps::extras::message::ChannelType::Squad => Some(if message.subgroup == 255 {
+            ChannelType::Party => Some(self.colors.party_chat),
+            ChannelType::Squad => Some(if message.subgroup == 255 {
                 self.colors.squad_chat
             } else {
                 self.colors.party_chat
             }),
-            arcdps::extras::message::ChannelType::Reserved => None,
-            arcdps::extras::message::ChannelType::Invalid => None,
+            ChannelType::Reserved => None,
+            ChannelType::Invalid => None,
         };
         let user_color = match message.channel_type {
-            arcdps::extras::message::ChannelType::Party => Some(self.colors.party_user),
-            arcdps::extras::message::ChannelType::Squad => Some(if message.subgroup == 255 {
+            ChannelType::Party => Some(self.colors.party_user),
+            ChannelType::Squad => Some(if message.subgroup == 255 {
                 self.colors.squad_user
             } else {
                 self.colors.party_user
             }),
-            arcdps::extras::message::ChannelType::Reserved => None,
-            arcdps::extras::message::ChannelType::Invalid => None,
+            ChannelType::Reserved => None,
+            ChannelType::Invalid => None,
         };
+
         line.parts.push(LogPart::new_time(message.timestamp));
         line.parts.push(LogPart::new(
             &format!("[{}]", message.channel_type),
             None,
             None,
         ));
-        if message.channel_type == arcdps::extras::message::ChannelType::Squad {
+        if message.channel_type == ChannelType::Squad {
             if message.subgroup != 255 {
                 line.parts.push(LogPart::new(
                     &format!("[{}]", message.subgroup + 1),
