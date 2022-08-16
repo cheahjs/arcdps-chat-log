@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
 use arc_util::ui::Ui;
 use arcdps::{
@@ -46,14 +46,15 @@ impl LogPart {
         Self::new_time(chrono::Local::now())
     }
 
-    pub fn render(&self, ui: &Ui) {
+    pub fn render(&self, ui: &Ui, display_hover: bool) {
         let color_style = self
             .color
             .map(|color| ui.push_style_color(StyleColor::Text, color));
 
         let width_left = ui.content_region_avail()[0];
         let end_length: usize;
-        let s: &str = self.text.as_ref();
+        let label = self.get_text(display_hover);
+        let s: &str = label.as_ref();
 
         unsafe {
             let start = s.as_ptr();
@@ -70,27 +71,31 @@ impl LogPart {
             end_length = end_line.offset_from(start) as usize;
 
             ui.text(std::str::from_utf8_unchecked(
-                &self.text.as_bytes()[..end_length],
+                &label.as_bytes()[..end_length],
             ));
         }
 
-        if let Some(hover) = &self.hover {
-            if ui.is_item_hovered() {
-                ui.tooltip_text(hover);
+        if display_hover {
+            if let Some(hover) = &self.hover {
+                if ui.is_item_hovered() {
+                    ui.tooltip_text(hover);
+                }
             }
         }
 
-        if end_length < self.text.len() {
+        if end_length < label.len() {
             unsafe {
                 let mut rest_of_str =
-                    std::str::from_utf8_unchecked(&self.text.as_bytes()[end_length..]);
+                    std::str::from_utf8_unchecked(&label.as_bytes()[end_length..]);
                 if rest_of_str.starts_with(' ') {
                     rest_of_str = &rest_of_str[1..];
                 }
                 ui.text_wrapped(rest_of_str);
-                if let Some(hover) = &self.hover {
-                    if ui.is_item_hovered() {
-                        ui.tooltip_text(hover);
+                if display_hover {
+                    if let Some(hover) = &self.hover {
+                        if ui.is_item_hovered() {
+                            ui.tooltip_text(hover);
+                        }
                     }
                 }
             }
@@ -98,6 +103,14 @@ impl LogPart {
 
         if let Some(color_style) = color_style {
             color_style.pop();
+        }
+    }
+
+    pub fn get_text(&self, display_hover: bool) -> String {
+        if display_hover || self.hover.is_none() {
+            self.text.clone()
+        } else {
+            format!("{} ({})", self.text, self.hover.as_ref().unwrap())
         }
     }
 
@@ -116,6 +129,7 @@ pub enum LogType {
     SquadMessage,
     PartyMessage,
     SquadUpdate,
+    Combat,
 }
 
 #[derive(Debug)]
@@ -132,9 +146,9 @@ impl LogLine {
         }
     }
 
-    pub fn render(&self, ui: &Ui) {
+    pub fn render(&self, ui: &Ui, hover: bool) {
         self.parts.iter().for_each(|p| {
-            p.render(ui);
+            p.render(ui, hover);
             ui.same_line_with_spacing(0.0, 0.0);
         });
         ui.new_line();
@@ -162,6 +176,9 @@ impl LogLine {
                     return false;
                 }
             }
+            LogType::Combat => {
+                return false;
+            }
         }
         if text.is_empty() {
             return true;
@@ -174,6 +191,7 @@ impl LogLine {
 pub struct LogBuffer {
     pub buffer: VecDeque<LogLine>,
     pub buffer_max_size: usize,
+    pub account_cache: HashMap<String, HashSet<String>>,
     pub colors: ColorSettings,
 }
 
@@ -182,11 +200,22 @@ impl LogBuffer {
         Self {
             buffer: VecDeque::new(),
             buffer_max_size: 100,
+            account_cache: HashMap::new(),
             colors: ColorSettings::new(),
         }
     }
 
     pub fn process_message(&mut self, message: &ChatMessageInfo) {
+        match self.account_cache.entry(message.account_name.to_owned()) {
+            Entry::Occupied(entry) => {
+                entry.into_mut().insert(message.character_name.to_owned());
+            }
+            Entry::Vacant(entry) => {
+                let mut set = HashSet::new();
+                set.insert(message.character_name.to_owned());
+                entry.insert(set);
+            }
+        };
         self.insert_message(self.chat_message_to_line(message))
     }
 
@@ -197,6 +226,15 @@ impl LogBuffer {
         log_line
             .parts
             .push(LogPart::new_no_color(&format!("[Update] {}", line)));
+        self.insert_message(log_line)
+    }
+
+    pub fn insert_squad_update_parts(&mut self, parts: &mut Vec<LogPart>) {
+        let mut log_line = LogLine::new();
+        log_line.log_type = LogType::SquadUpdate;
+        log_line.parts.push(LogPart::new_current_time());
+        log_line.parts.push(LogPart::new_no_color("[Update] "));
+        log_line.parts.append(parts);
         self.insert_message(log_line)
     }
 

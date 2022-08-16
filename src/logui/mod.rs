@@ -1,13 +1,31 @@
 use self::{buffer::LogBuffer, settings::ChatLogSettings};
 
-mod buffer;
+pub mod buffer;
 mod settings;
 mod ui;
+
+#[derive(Debug)]
+struct LogProps {
+    pub account_filter: String,
+    pub text_filter: String,
+    pub account_width: f32,
+}
+
+impl LogProps {
+    pub fn new() -> Self {
+        Self {
+            account_filter: String::new(),
+            text_filter: String::new(),
+            account_width: 100.0,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct LogUi {
     pub settings: ChatLogSettings,
     pub buffer: LogBuffer,
+    ui_props: LogProps,
 }
 
 impl LogUi {
@@ -15,6 +33,7 @@ impl LogUi {
         Self {
             settings: ChatLogSettings::new(),
             buffer: LogBuffer::new(),
+            ui_props: LogProps::new(),
         }
     }
 

@@ -1,7 +1,13 @@
-use std::collections::hash_map::Entry;
+use std::collections::{hash_map::Entry, HashSet};
 
-use arcdps::extras::{message::ChatMessageInfo, ExtrasAddonInfo, UserInfoIter, UserRole};
+use arc_util::tracking::Player;
+use arcdps::{
+    extras::{message::ChatMessageInfo, ExtrasAddonInfo, UserInfoIter, UserRole},
+    Agent, CombatEvent,
+};
 use log::error;
+
+use crate::logui::buffer::LogPart;
 
 use super::{state::ExtrasState, Plugin};
 
@@ -17,11 +23,10 @@ impl Plugin {
             error!("failed to process message for notifications: {}", err);
         }
         self.log_ui.buffer.process_message(chat_message_info);
-        if !self.log_ui.settings.log_enabled {
-            return Ok(());
-        }
-        if let Some(chat_database) = self.chat_database.as_mut() {
-            chat_database.process_message(chat_message_info)?;
+        if self.log_ui.settings.log_enabled {
+            if let Some(chat_database) = self.chat_database.as_mut() {
+                chat_database.process_message(chat_message_info)?;
+            }
         }
         Ok(())
     }
@@ -37,54 +42,130 @@ impl Plugin {
         }
     }
 
+    pub fn combat(
+        &mut self,
+        event: Option<CombatEvent>,
+        src: Option<Agent>,
+        dst: Option<Agent>,
+        _skill_name: Option<&'static str>,
+        _id: u64,
+        _revision: u64,
+    ) {
+        match event {
+            Some(_) => {}
+            None => {
+                if let Some(src) = src {
+                    // tracking change
+                    if src.elite == 0 {
+                        if src.prof != 0 {
+                            // agent added
+                            if let Some(player) =
+                                dst.and_then(|dst| Player::from_tracking_change(src, dst))
+                            {
+                                self.tracker.add_arc_player(&player);
+                                let mut parts: Vec<LogPart> = Vec::new();
+                                if player.account == self.self_account_name {
+                                    parts.push(LogPart::new_no_color(
+                                        "You have joined an instance as ",
+                                    ));
+                                    parts.push(LogPart::new(
+                                        &player.character,
+                                        Some(&player.account),
+                                        None,
+                                    ));
+                                } else {
+                                    parts.push(LogPart::new(
+                                        &player.character,
+                                        Some(&player.account),
+                                        None,
+                                    ));
+                                    parts.push(LogPart::new_no_color(" has joined your instance"));
+                                }
+                                self.log_ui.buffer.insert_squad_update_parts(&mut parts);
+                            }
+                        } else {
+                            // agent removed
+                            let player = self.tracker.remove_arc_player(src.id);
+                            if let Some(player) = player {
+                                let mut parts: Vec<LogPart> = Vec::new();
+                                if player.account == self.self_account_name {
+                                    parts.push(LogPart::new_no_color(
+                                        "You have left an instance as ",
+                                    ));
+                                    parts.push(LogPart::new(
+                                        &player.character,
+                                        Some(&player.account),
+                                        None,
+                                    ));
+                                } else {
+                                    parts.push(LogPart::new(
+                                        &player.character,
+                                        Some(&player.account),
+                                        None,
+                                    ));
+                                    parts.push(LogPart::new_no_color(" has left your instance"));
+                                }
+                                self.log_ui.buffer.insert_squad_update_parts(&mut parts);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn squad_update(&mut self, users: UserInfoIter) {
         for user_update in users {
             let account_name = match user_update.account_name {
                 Some(x) => arcdps::strip_account_prefix(x),
                 None => continue,
             };
+            match self
+                .log_ui
+                .buffer
+                .account_cache
+                .entry(account_name.to_owned())
+            {
+                Entry::Occupied(_) => {}
+                Entry::Vacant(entry) => {
+                    entry.insert(HashSet::new());
+                }
+            };
             match user_update.role {
                 UserRole::SquadLeader | UserRole::Lieutenant | UserRole::Member => {
-                    let entry = self.squad_members.entry(account_name.to_string());
-                    match entry {
-                        Entry::Occupied(entry) => {
-                            let user = entry.into_mut();
-
-                            if user_update.ready_status && !user.ready_status {
+                    let old_info = self.tracker.add_extras_player(&user_update.clone().into());
+                    match old_info {
+                        Some(old_info) => {
+                            if user_update.ready_status && !old_info.ready_status {
                                 self.log_ui
                                     .buffer
                                     .insert_squad_update(format!("{} readied up", account_name));
                             }
-                            if !user_update.ready_status && user.ready_status {
+                            if !user_update.ready_status && old_info.ready_status {
                                 self.log_ui
                                     .buffer
                                     .insert_squad_update(format!("{} unreadied", account_name));
                             }
-                            if user_update.role != user.role {
+                            if user_update.role != old_info.role {
                                 self.log_ui.buffer.insert_squad_update(format!(
                                     "{} changed roles from {} to {}",
-                                    account_name, user.role, user_update.role
+                                    account_name, old_info.role, user_update.role
                                 ));
                             }
-                            if user_update.subgroup != user.subgroup {
+                            if user_update.subgroup != old_info.subgroup {
                                 self.log_ui.buffer.insert_squad_update(format!(
                                     "{} moved from subgroup {} to {}",
                                     account_name,
-                                    user.subgroup + 1,
+                                    old_info.subgroup + 1,
                                     user_update.subgroup + 1
                                 ));
                             }
-
-                            user.ready_status = user_update.ready_status;
-                            user.role = user_update.role;
-                            user.subgroup = user_update.subgroup;
                         }
-                        Entry::Vacant(entry) => {
+                        None => {
                             self.log_ui.buffer.insert_squad_update(format!(
                                 "{} joined the squad as {}",
                                 account_name, user_update.role
                             ));
-                            entry.insert(user_update.into());
                         }
                     };
                 }
@@ -93,9 +174,9 @@ impl Plugin {
                         self.log_ui
                             .buffer
                             .insert_squad_update(format!("{} (self) left the squad", account_name));
-                        self.squad_members.clear();
+                        self.tracker.clear();
                     } else {
-                        let _result = self.squad_members.remove(account_name);
+                        let _result = self.tracker.remove_extras_player(&user_update.into());
                         self.log_ui
                             .buffer
                             .insert_squad_update(format!("{} left the squad", account_name));

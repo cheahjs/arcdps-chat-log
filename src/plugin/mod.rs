@@ -3,14 +3,12 @@ mod settings;
 pub mod state;
 pub mod ui;
 
-use std::collections::HashMap;
-
 use anyhow::Context;
 use arc_util::{
     settings::Settings,
     ui::{Window, WindowOptions},
 };
-use arcdps::extras::UserInfoOwned;
+
 use log::{error, info};
 
 use crate::{
@@ -18,6 +16,7 @@ use crate::{
     logui::LogUi,
     notifications::Notifications,
     plugin::state::{MumbleLinkState, NotificationsState},
+    tracking::Tracker,
 };
 
 use self::state::UiState;
@@ -33,7 +32,7 @@ pub struct Plugin {
     pub self_account_name: String,
     game_start: i64,
     chat_database: Option<ChatDatabase>,
-    squad_members: HashMap<String, UserInfoOwned>,
+    tracker: Tracker,
 }
 
 impl Plugin {
@@ -52,7 +51,7 @@ impl Plugin {
             self_account_name: String::new(),
             game_start: chrono::Utc::now().timestamp(),
             chat_database: None,
-            squad_members: HashMap::new(),
+            tracker: Tracker::new(),
         }
     }
 

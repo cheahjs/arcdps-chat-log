@@ -5,10 +5,13 @@ mod mumblelink;
 mod notifications;
 mod panic_handler;
 mod plugin;
+mod tracking;
 
+use arcdps::callbacks::CombatCallback;
 use arcdps::extras::UserInfoIter;
 use arcdps::extras::{message::ChatMessageInfo, ExtrasAddonInfo};
 use arcdps::imgui::Ui;
+use arcdps::{Agent, CombatEvent};
 use audio::player::AudioPlayer;
 use log::*;
 use mumblelink::MumbleLink;
@@ -31,6 +34,7 @@ arcdps::export! {
     options_end,
     options_windows,
     imgui,
+    combat,
     extras_init,
     extras_chat_message: extras_chat_callback,
     extras_squad_update,
@@ -58,6 +62,20 @@ fn extras_chat_callback(chat_message_info: &ChatMessageInfo) {
             error!("failed to process chat message: {}", err)
         }
     }
+}
+
+fn combat(
+    event: Option<CombatEvent>,
+    src: Option<Agent>,
+    dst: Option<Agent>,
+    skill_name: Option<&'static str>,
+    id: u64,
+    revision: u64,
+) {
+    PLUGIN
+        .lock()
+        .unwrap()
+        .combat(event, src, dst, skill_name, id, revision)
 }
 
 fn extras_squad_update(users: UserInfoIter) {
