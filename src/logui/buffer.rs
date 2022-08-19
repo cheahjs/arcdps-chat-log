@@ -1,4 +1,4 @@
-use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
 
 use arc_util::ui::Ui;
 use arcdps::{
@@ -191,7 +191,6 @@ impl LogLine {
 pub struct LogBuffer {
     pub buffer: VecDeque<LogLine>,
     pub buffer_max_size: usize,
-    pub account_cache: HashMap<String, HashSet<String>>,
     pub colors: ColorSettings,
 }
 
@@ -200,22 +199,11 @@ impl LogBuffer {
         Self {
             buffer: VecDeque::new(),
             buffer_max_size: 100,
-            account_cache: HashMap::new(),
             colors: ColorSettings::new(),
         }
     }
 
     pub fn process_message(&mut self, message: &ChatMessageInfo) {
-        match self.account_cache.entry(message.account_name.to_owned()) {
-            Entry::Occupied(entry) => {
-                entry.into_mut().insert(message.character_name.to_owned());
-            }
-            Entry::Vacant(entry) => {
-                let mut set = HashSet::new();
-                set.insert(message.character_name.to_owned());
-                entry.insert(set);
-            }
-        };
         self.insert_message(self.chat_message_to_line(message))
     }
 

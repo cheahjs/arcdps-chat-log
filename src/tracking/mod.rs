@@ -1,7 +1,7 @@
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 use arc_util::tracking::Player;
-use arcdps::extras::UserInfoOwned;
+use arcdps::{extras::{message::ChatMessageInfo, UserInfoOwned}, strip_account_prefix};
 
 #[derive(Debug)]
 pub struct PlayerInfo {
@@ -27,6 +27,7 @@ impl PlayerInfo {
 pub struct Tracker {
     pub map: HashMap<String, PlayerInfo>,
     pub arc_id_map: HashMap<usize, String>,
+    pub seen_users: HashMap<String, HashSet<String>>,
 }
 
 impl Tracker {
@@ -34,10 +35,12 @@ impl Tracker {
         Self {
             map: HashMap::new(),
             arc_id_map: HashMap::new(),
+            seen_users: HashMap::new(),
         }
     }
 
     pub fn add_arc_player(&mut self, player: &Player) -> Option<Player> {
+        self.insert_name_into_cache(&player.account, Some(&player.character));
         self.arc_id_map.insert(player.id, player.account.to_owned());
         match self.map.entry(player.account.to_owned()) {
             Entry::Occupied(entry) => {
@@ -72,18 +75,21 @@ impl Tracker {
 
     pub fn add_extras_player(&mut self, player: &UserInfoOwned) -> Option<UserInfoOwned> {
         match &player.account_name {
-            Some(account_name) => match self.map.entry(account_name.to_owned()) {
-                Entry::Occupied(entry) => {
-                    let entry = entry.into_mut();
-                    let old_info = entry.extras.as_ref().cloned();
-                    entry.extras = Some(player.clone());
-                    old_info
+            Some(account_name) => {
+                self.insert_name_into_cache(strip_account_prefix(account_name), None);
+                match self.map.entry(account_name.to_owned()) {
+                    Entry::Occupied(entry) => {
+                        let entry = entry.into_mut();
+                        let old_info = entry.extras.as_ref().cloned();
+                        entry.extras = Some(player.clone());
+                        old_info
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(PlayerInfo::new_from_extras(player));
+                        None
+                    }
                 }
-                Entry::Vacant(entry) => {
-                    entry.insert(PlayerInfo::new_from_extras(player));
-                    None
-                }
-            },
+            }
             _ => None,
         }
     }
@@ -106,6 +112,27 @@ impl Tracker {
             },
             _ => None,
         }
+    }
+
+    pub fn add_player_from_message(&mut self, message: &ChatMessageInfo) {
+        self.insert_name_into_cache(message.account_name, Some(message.character_name));
+    }
+
+    fn insert_name_into_cache(&mut self, account_name: &str, character_name: Option<&str>) {
+        match self.seen_users.entry(account_name.to_owned()) {
+            Entry::Occupied(entry) => {
+                if let Some(character_name) = character_name {
+                    entry.into_mut().insert(character_name.to_owned());
+                }
+            }
+            Entry::Vacant(entry) => {
+                let mut set = HashSet::new();
+                if let Some(character_name) = character_name {
+                    set.insert(character_name.to_owned());
+                }
+                entry.insert(set);
+            }
+        };
     }
 
     pub fn clear(&mut self) {

@@ -1,17 +1,19 @@
 use arc_util::ui::{render, Component, Ui, Windowable};
 use arcdps::imgui::{ChildWindow, Selectable, StyleVar};
 
+use crate::tracking::Tracker;
+
 use super::LogUi;
 
-impl Windowable<()> for LogUi {
+impl Windowable<&Tracker> for LogUi {
     const CONTEXT_MENU: bool = true;
     const DEFAULT_OPTIONS: bool = true;
 
-    fn render_menu(&mut self, _ui: &Ui, _props: &()) {}
+    fn render_menu(&mut self, _ui: &Ui, _props: &&Tracker) {}
 }
 
-impl Component<()> for LogUi {
-    fn render(&mut self, ui: &Ui, _props: ()) {
+impl Component<&Tracker> for LogUi {
+    fn render(&mut self, ui: &Ui, tracker: &Tracker) {
         let _style = render::small_padding(ui);
         let _border_style = ui.push_style_var(StyleVar::ChildBorderSize(1.0));
 
@@ -46,8 +48,8 @@ impl Component<()> for LogUi {
                 ui.input_text("Filter", &mut self.ui_props.account_filter)
                     .build();
                 if let Some(_child) = ChildWindow::new("chat_log_names_child").begin(ui) {
-                    self.buffer
-                        .account_cache
+                    tracker
+                        .seen_users
                         .iter()
                         .filter(|(account_name, character_names)| {
                             self.ui_props.account_filter.is_empty()
@@ -71,6 +73,7 @@ impl Component<()> for LogUi {
                             if Selectable::new(label).build(ui) {
                                 self.ui_props.text_filter = account_name.to_string();
                             }
+                            ui.separator();
                         });
                 }
             }

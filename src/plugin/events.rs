@@ -1,5 +1,3 @@
-use std::collections::{hash_map::Entry, HashSet};
-
 use arc_util::tracking::Player;
 use arcdps::{
     extras::{message::ChatMessageInfo, ExtrasAddonInfo, UserInfoIter, UserRole},
@@ -16,6 +14,7 @@ impl Plugin {
         &mut self,
         chat_message_info: &ChatMessageInfo,
     ) -> Result<(), anyhow::Error> {
+        self.tracker.add_player_from_message(chat_message_info);
         if let Err(err) = self
             .notifications
             .process_message(chat_message_info, &self.self_account_name)
@@ -119,17 +118,6 @@ impl Plugin {
             let account_name = match user_update.account_name {
                 Some(x) => arcdps::strip_account_prefix(x),
                 None => continue,
-            };
-            match self
-                .log_ui
-                .buffer
-                .account_cache
-                .entry(account_name.to_owned())
-            {
-                Entry::Occupied(_) => {}
-                Entry::Vacant(entry) => {
-                    entry.insert(HashSet::new());
-                }
             };
             match user_update.role {
                 UserRole::SquadLeader | UserRole::Lieutenant | UserRole::Member => {

@@ -5,13 +5,13 @@ mod settings;
 mod ui;
 
 #[derive(Debug)]
-struct LogProps {
+struct LocalProps {
     pub account_filter: String,
     pub text_filter: String,
     pub account_width: f32,
 }
 
-impl LogProps {
+impl LocalProps {
     pub fn new() -> Self {
         Self {
             account_filter: String::new(),
@@ -25,7 +25,7 @@ impl LogProps {
 pub struct LogUi {
     pub settings: ChatLogSettings,
     pub buffer: LogBuffer,
-    ui_props: LogProps,
+    ui_props: LocalProps,
 }
 
 impl LogUi {
@@ -33,7 +33,7 @@ impl LogUi {
         Self {
             settings: ChatLogSettings::new(),
             buffer: LogBuffer::new(),
-            ui_props: LogProps::new(),
+            ui_props: LocalProps::new(),
         }
     }
 
