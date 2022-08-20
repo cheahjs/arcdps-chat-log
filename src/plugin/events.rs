@@ -1,7 +1,7 @@
 use arc_util::tracking::Player;
 use arcdps::{
     extras::{message::ChatMessageInfo, ExtrasAddonInfo, UserInfoIter, UserRole},
-    Agent, CombatEvent,
+    Agent, CombatEvent, StateChange,
 };
 use log::error;
 
@@ -50,10 +50,54 @@ impl Plugin {
         _id: u64,
         _revision: u64,
     ) {
-        match event {
-            Some(_) => {}
-            None => {
-                if let Some(src) = src {
+        if let Some(src) = src {
+            match event {
+                Some(event) => match event.is_statechange {
+                    StateChange::EnterCombat => {
+                        if let Some(player) = self.tracker.get_arc_player(src.id) {
+                            let mut parts: Vec<LogPart> = Vec::new();
+                            if player.account == self.self_account_name {
+                                parts.push(LogPart::new_no_color("You have entered combat as "));
+                                parts.push(LogPart::new(
+                                    &player.character,
+                                    Some(&player.account),
+                                    None,
+                                ));
+                            } else {
+                                parts.push(LogPart::new(
+                                    &player.character,
+                                    Some(&player.account),
+                                    None,
+                                ));
+                                parts.push(LogPart::new_no_color(" has entered combat"));
+                            }
+                            self.log_ui.buffer.insert_combat_update_parts(&mut parts);
+                        }
+                    }
+                    StateChange::ExitCombat => {
+                        if let Some(player) = self.tracker.get_arc_player(src.id) {
+                            let mut parts: Vec<LogPart> = Vec::new();
+                            if player.account == self.self_account_name {
+                                parts.push(LogPart::new_no_color("You have left combat as "));
+                                parts.push(LogPart::new(
+                                    &player.character,
+                                    Some(&player.account),
+                                    None,
+                                ));
+                            } else {
+                                parts.push(LogPart::new(
+                                    &player.character,
+                                    Some(&player.account),
+                                    None,
+                                ));
+                                parts.push(LogPart::new_no_color(" has left combat"));
+                            }
+                            self.log_ui.buffer.insert_combat_update_parts(&mut parts);
+                        }
+                    }
+                    _ => {}
+                },
+                None => {
                     // tracking change
                     if src.elite == 0 {
                         if src.prof != 0 {

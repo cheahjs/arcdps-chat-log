@@ -1,7 +1,10 @@
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 use arc_util::tracking::Player;
-use arcdps::{extras::{message::ChatMessageInfo, UserInfoOwned}, strip_account_prefix};
+use arcdps::{
+    extras::{message::ChatMessageInfo, UserInfoOwned},
+    strip_account_prefix,
+};
 
 #[derive(Debug)]
 pub struct PlayerInfo {
@@ -68,6 +71,15 @@ impl Tracker {
                     info.arc = None;
                 }
                 return old_info;
+            }
+        }
+        None
+    }
+
+    pub fn get_arc_player(&mut self, id: usize) -> Option<Player> {
+        if let Some(account_name) = self.arc_id_map.get(&id) {
+            if let Entry::Occupied(entry) = self.map.entry(account_name.to_owned()) {
+                return entry.get().arc.as_ref().cloned();
             }
         }
         None

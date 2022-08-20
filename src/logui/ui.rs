@@ -26,6 +26,8 @@ impl Component<&Tracker> for LogUi {
         ui.same_line();
         ui.checkbox("Updates", &mut self.settings.filter_settings.squad_updates);
         ui.same_line();
+        ui.checkbox("Combat", &mut self.settings.filter_settings.combat_updates);
+        ui.same_line();
         ui.checkbox("Others", &mut self.settings.filter_settings.others);
 
         ui.checkbox(

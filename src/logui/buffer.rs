@@ -177,7 +177,9 @@ impl LogLine {
                 }
             }
             LogType::Combat => {
-                return false;
+                if !types.combat_updates {
+                    return false;
+                }
             }
         }
         if text.is_empty() {
@@ -222,6 +224,15 @@ impl LogBuffer {
         log_line.log_type = LogType::SquadUpdate;
         log_line.parts.push(LogPart::new_current_time());
         log_line.parts.push(LogPart::new_no_color("[Update] "));
+        log_line.parts.append(parts);
+        self.insert_message(log_line)
+    }
+
+    pub fn insert_combat_update_parts(&mut self, parts: &mut Vec<LogPart>) {
+        let mut log_line = LogLine::new();
+        log_line.log_type = LogType::Combat;
+        log_line.parts.push(LogPart::new_current_time());
+        log_line.parts.push(LogPart::new_no_color("[Combat] "));
         log_line.parts.append(parts);
         self.insert_message(log_line)
     }

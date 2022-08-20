@@ -13,6 +13,7 @@ pub struct FilterSettings {
     pub squad_message: bool,
     pub party_message: bool,
     pub squad_updates: bool,
+    pub combat_updates: bool,
     pub others: bool,
     pub hover_char_name_for_account_name: bool,
 }
@@ -23,6 +24,7 @@ impl FilterSettings {
             squad_message: true,
             party_message: true,
             squad_updates: true,
+            combat_updates: true,
             others: true,
             hover_char_name_for_account_name: true,
         }
