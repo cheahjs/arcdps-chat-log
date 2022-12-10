@@ -48,6 +48,7 @@ pub struct ColorSettings {
 
 impl ColorSettings {
     pub fn new() -> Self {
+        #[allow(clippy::eq_op)]
         Self {
             squad_chat: [205.0 / 255.0, 255.0 / 255.0, 239.0 / 255.0, 1.0],
             party_chat: [188.0 / 255.0, 222.0 / 255.0, 255.0 / 255.0, 1.0],
