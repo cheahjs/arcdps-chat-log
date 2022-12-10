@@ -15,8 +15,9 @@ use crate::{
     db::ChatDatabase,
     logui::LogUi,
     notifications::Notifications,
-    plugin::state::{MumbleLinkState, NotificationsState},
+    plugin::state::{MumbleLinkState, NotificationsState, TtsState},
     tracking::Tracker,
+    tts::TextToSpeech,
 };
 
 use self::state::UiState;
@@ -32,6 +33,7 @@ pub struct Plugin {
     pub self_account_name: String,
     game_start: i64,
     chat_database: Option<ChatDatabase>,
+    tts: TextToSpeech,
     tracker: Tracker,
 }
 
@@ -51,6 +53,7 @@ impl Plugin {
             self_account_name: String::new(),
             game_start: chrono::Utc::now().timestamp(),
             chat_database: None,
+            tts: TextToSpeech::new(),
             tracker: Tracker::new(),
         }
     }
@@ -62,6 +65,7 @@ impl Plugin {
 
         settings.load_component(&mut self.log_ui);
         settings.load_component(&mut self.notifications);
+        settings.load_component(&mut self.tts);
 
         self.log_ui.buffer.buffer_max_size = self.log_ui.settings.log_buffer as usize;
 
@@ -90,6 +94,14 @@ impl Plugin {
             }
             Err(err) => {
                 self.ui_state.mumblelink_state = MumbleLinkState::Errored;
+                error!("{}", err)
+            }
+        }
+
+        match self.tts.init().context("failed to load tts module") {
+            Ok(_) => self.ui_state.tts_state = TtsState::Loaded,
+            Err(err) => {
+                self.ui_state.tts_state = TtsState::Errored;
                 error!("{}", err)
             }
         }

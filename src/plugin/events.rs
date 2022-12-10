@@ -21,6 +21,8 @@ impl Plugin {
         {
             error!("failed to process message for notifications: {}", err);
         }
+        self.tts
+            .process_message(chat_message_info, &self.self_account_name);
         self.log_ui.buffer.process_message(chat_message_info);
         if self.log_ui.settings.log_enabled {
             if let Some(chat_database) = self.chat_database.as_mut() {
