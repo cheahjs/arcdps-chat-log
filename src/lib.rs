@@ -6,6 +6,7 @@ mod notifications;
 mod panic_handler;
 mod plugin;
 mod tracking;
+mod tts;
 
 use arcdps::callbacks::CombatCallback;
 use arcdps::extras::UserInfoIter;

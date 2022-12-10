@@ -4,9 +4,11 @@ use arc_util::ui::{
 };
 use arcdps::{
     exports::{self, CoreColor},
-    imgui::Slider,
+    imgui::{Selectable, Slider},
 };
 use log::error;
+
+use crate::tts::TextToSpeech;
 
 use super::Plugin;
 
@@ -168,6 +170,95 @@ impl Plugin {
                         ui.text_colored(red, &self.notifications.ping_track.status_message)
                     }
                 });
+            }
+            if let Some(_tab) = ui.tab_item("TTS") {
+                if ui.checkbox(
+                    "Play incoming messages",
+                    &mut self.tts.settings.play_on_all_new_messages,
+                ) {
+                    let _ = self.tts.update_settings();
+                }
+                if ui.checkbox(
+                    "Play on self messages",
+                    &mut self.tts.settings.play_on_self_message,
+                ) {
+                    let _ = self.tts.update_settings();
+                }
+                if ui.checkbox(
+                    "Play while in combat",
+                    &mut self.tts.settings.play_in_combat,
+                ) {
+                    let _ = self.tts.update_settings();
+                }
+                if ui.checkbox(
+                    "Play while out of combat",
+                    &mut self.tts.settings.play_out_of_combat,
+                ) {
+                    let _ = self.tts.update_settings();
+                }
+
+                let cur_voice = self.tts.current_voice();
+                let mut new_voice_id = String::new();
+                let voices = self.tts.voices();
+                if let Some(voices) = voices {
+                    let mut cur_pos = 0;
+                    if let Some(cur_voice) = cur_voice {
+                        cur_pos = voices
+                            .iter()
+                            .position(|v| v.id() == cur_voice.id())
+                            .unwrap_or(0)
+                    }
+                    if let Some(_combo) = ui.begin_combo(
+                        "TTS Voice",
+                        TextToSpeech::get_display_name_for_voice(voices.get(cur_pos).unwrap()),
+                    ) {
+                        for (i, voice) in voices.iter().enumerate() {
+                            let is_selected = i == cur_pos;
+                            if Selectable::new(TextToSpeech::get_display_name_for_voice(voice))
+                                .selected(is_selected)
+                                .build(ui)
+                            {
+                                new_voice_id = voice.id().clone();
+                            }
+                        }
+                    }
+                } else {
+                    let _ = ui.begin_combo("TTS Voice", "error");
+                }
+                if !new_voice_id.is_empty() && new_voice_id != self.tts.settings.voice_id {
+                    self.tts.settings.voice_id = new_voice_id;
+                    let _ = self.tts.update_settings();
+                }
+
+                ui.set_next_item_width(input_width);
+                if Slider::new("TTS volume", 0, 100).build(ui, &mut self.tts.settings.volume) {
+                    let _ = self.tts.update_settings();
+                }
+                ui.set_next_item_width(input_width);
+                if Slider::new(
+                    "TTS rate",
+                    TextToSpeech::min_rate(),
+                    TextToSpeech::max_rate(),
+                )
+                .build(ui, &mut self.tts.settings.rate)
+                {
+                    let _ = self.tts.update_settings();
+                }
+                ui.set_next_item_width(input_width);
+                if Slider::new(
+                    "TTS pitch",
+                    TextToSpeech::min_pitch(),
+                    TextToSpeech::max_pitch(),
+                )
+                .build(ui, &mut self.tts.settings.pitch)
+                {
+                    let _ = self.tts.update_settings();
+                }
+
+                if ui.button("Play sample") {
+                    self.tts
+                        .play("This is some sample text being played with text to speech");
+                }
             }
         }
     }

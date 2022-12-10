@@ -37,7 +37,7 @@ impl ChatDatabase {
             .context("failed to migrate database")?;
 
         connection
-            .pragma_update(None, "journal_mode", &"WAL")
+            .pragma_update(None, "journal_mode", "WAL")
             .context("failed to set journal mode")?;
 
         let (insert_send, insert_recv) = mpsc::channel::<ChatMessageInfoOwned>();

@@ -20,10 +20,18 @@ pub enum MumbleLinkState {
 }
 
 #[derive(Debug)]
+pub enum TtsState {
+    Loaded,
+    Errored,
+    Unknown,
+}
+
+#[derive(Debug)]
 pub struct UiState {
     pub extras_state: ExtrasState,
     pub notifications_state: NotificationsState,
     pub mumblelink_state: MumbleLinkState,
+    pub tts_state: TtsState,
 }
 
 impl UiState {
@@ -32,6 +40,7 @@ impl UiState {
             extras_state: ExtrasState::Unknown,
             notifications_state: NotificationsState::Unknown,
             mumblelink_state: MumbleLinkState::Unknown,
+            tts_state: TtsState::Unknown,
         }
     }
 }
