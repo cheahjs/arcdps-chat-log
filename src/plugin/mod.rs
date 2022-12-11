@@ -116,6 +116,7 @@ impl Plugin {
         let mut settings = Settings::from_file(SETTINGS_FILE);
         settings.store_component(&self.log_ui);
         settings.store_component(&self.notifications);
+        settings.store_component(&self.tts);
         settings.save_file();
     }
 }
