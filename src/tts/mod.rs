@@ -35,6 +35,7 @@ impl TextToSpeech {
             tts_instance.set_pitch(self.settings.pitch)?;
             tts_instance.set_rate(self.settings.rate)?;
             tts_instance.set_volume(self.settings.volume as f32 / 100.)?;
+            tts_instance.set_silence(self.settings.silence_between_messages)?;
             if !self.settings.voice_id.is_empty() {
                 let voices = tts_instance.voices()?;
                 for v in voices {

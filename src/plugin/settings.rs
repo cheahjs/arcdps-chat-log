@@ -254,6 +254,12 @@ impl Plugin {
                 {
                     let _ = self.tts.update_settings();
                 }
+                ui.set_next_item_width(input_width);
+                if Slider::new("TTS silence between messages (milliseconds)", 0, 2000)
+                    .build(ui, &mut self.tts.settings.silence_between_messages)
+                {
+                    let _ = self.tts.update_settings();
+                }
 
                 if ui.button("Play sample") {
                     self.tts
