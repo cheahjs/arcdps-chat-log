@@ -3,6 +3,7 @@ use crate::MUMBLE_LINK;
 use super::TextToSpeech;
 use arcdps::extras::message::ChatMessageInfo;
 use log::error;
+use regex::Regex;
 
 impl TextToSpeech {
     pub fn process_message(&mut self, message: &ChatMessageInfo, self_account_name: &str) {
@@ -25,7 +26,7 @@ impl TextToSpeech {
                 return;
             }
         };
-        self.play(message.text);
+        self.play(&Self::sanitize_message(message.text));
     }
 
     pub fn play(&mut self, text: &str) {
@@ -37,5 +38,24 @@ impl TextToSpeech {
                 }
             }
         }
+    }
+
+    fn sanitize_message(message: &str) -> String {
+        // Clean up chat codes until we have an implementation to strip it
+        let re = Regex::new(r"\[&[A-Za-z0-9+/=]+\]").unwrap();
+        return re.replace_all(message, "chatcode").to_string();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TextToSpeech;
+
+    #[test]
+    fn sanitize_message() {
+        assert_eq!("this message has no chat codes", TextToSpeech::sanitize_message("this message has no chat codes"));
+        assert_eq!("incomplete chat code [asdasdsa]", TextToSpeech::sanitize_message("incomplete chat code [asdasdsa]"));
+        assert_eq!("single chatcode chatcode", TextToSpeech::sanitize_message("single chatcode [&AgGqtgAA]"));
+        assert_eq!("multiple chatcode here chatcode and here chatcode", TextToSpeech::sanitize_message("multiple chatcode here [&AgGqtgAA] and here [&AgGqtgAA]"));
     }
 }
