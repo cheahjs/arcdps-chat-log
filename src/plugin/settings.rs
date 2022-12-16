@@ -97,6 +97,22 @@ impl Plugin {
                 if ui.is_item_hovered() {
                     ui.tooltip_text("MumbleLink is used for determining combat and focus status");
                 }
+                ui.group(|| {
+                    ui.text("Text-to-speech module:");
+                    ui.same_line();
+                    match &self.ui_state.tts_state {
+                        super::state::TtsState::Loaded => {
+                            ui.text_colored(green, format!("Loaded",))
+                        }
+                        super::state::TtsState::Errored => {
+                            ui.text_colored(red, "Error - check the logs")
+                        }
+                        super::state::TtsState::Unknown => ui.text_colored(red, "Unknown"),
+                    }
+                });
+                if ui.is_item_hovered() {
+                    ui.tooltip_text("The text-to-speech module is used for playing messages as speech");
+                }
             }
             if let Some(_tab) = ui.tab_item("Logging") {
                 ui.checkbox(
