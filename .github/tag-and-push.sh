@@ -13,4 +13,4 @@ echo "Committing changes"
 git add Cargo.toml
 git commit -m "Updated version to ${VERSION}"
 git tag -a "$VERSION" -m "$VERSION"
-git push
+git push --tags
