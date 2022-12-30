@@ -1,4 +1,5 @@
 use self::{buffer::LogBuffer, settings::ChatLogSettings};
+use windows::System::VirtualKey;
 
 pub mod buffer;
 mod settings;
@@ -29,6 +30,8 @@ pub struct LogUi {
 }
 
 impl LogUi {
+    pub const DEFAULT_HOTKEY: u32 = VirtualKey::J.0 as u32;
+
     pub fn new() -> Self {
         Self {
             settings: ChatLogSettings::new(),

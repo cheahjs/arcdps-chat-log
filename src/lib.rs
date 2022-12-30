@@ -39,6 +39,7 @@ arcdps::export! {
     extras_init,
     extras_chat_message: extras_chat_callback,
     extras_squad_update,
+    wnd_filter,
 }
 
 fn imgui(ui: &Ui, not_loading_or_character_selection: bool) {
@@ -96,6 +97,13 @@ fn options_windows(ui: &Ui, option_name: Option<&str>) -> bool {
         .lock()
         .unwrap()
         .render_window_options(ui, option_name)
+}
+
+fn wnd_filter(key: usize, key_down: bool, prev_key_down: bool) -> bool {
+    PLUGIN
+        .lock()
+        .unwrap()
+        .key_event(key, key_down, prev_key_down)
 }
 
 fn init() -> Result<(), Box<dyn std::error::Error>> {
