@@ -111,7 +111,9 @@ impl Plugin {
                     }
                 });
                 if ui.is_item_hovered() {
-                    ui.tooltip_text("The text-to-speech module is used for playing messages as speech");
+                    ui.tooltip_text(
+                        "The text-to-speech module is used for playing messages as speech",
+                    );
                 }
             }
             if let Some(_tab) = ui.tab_item("Logging") {

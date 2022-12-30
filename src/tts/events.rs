@@ -53,9 +53,23 @@ mod tests {
 
     #[test]
     fn sanitize_message() {
-        assert_eq!("this message has no chat codes", TextToSpeech::sanitize_message("this message has no chat codes"));
-        assert_eq!("incomplete chat code [asdasdsa]", TextToSpeech::sanitize_message("incomplete chat code [asdasdsa]"));
-        assert_eq!("single chatcode chatcode", TextToSpeech::sanitize_message("single chatcode [&AgGqtgAA]"));
-        assert_eq!("multiple chatcode here chatcode and here chatcode", TextToSpeech::sanitize_message("multiple chatcode here [&AgGqtgAA] and here [&AgGqtgAA]"));
+        assert_eq!(
+            "this message has no chat codes",
+            TextToSpeech::sanitize_message("this message has no chat codes")
+        );
+        assert_eq!(
+            "incomplete chat code [asdasdsa]",
+            TextToSpeech::sanitize_message("incomplete chat code [asdasdsa]")
+        );
+        assert_eq!(
+            "single chatcode chatcode",
+            TextToSpeech::sanitize_message("single chatcode [&AgGqtgAA]")
+        );
+        assert_eq!(
+            "multiple chatcode here chatcode and here chatcode",
+            TextToSpeech::sanitize_message(
+                "multiple chatcode here [&AgGqtgAA] and here [&AgGqtgAA]"
+            )
+        );
     }
 }
