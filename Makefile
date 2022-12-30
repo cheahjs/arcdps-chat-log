@@ -15,3 +15,7 @@ copy-release:
 install: build copy
 
 install-release: build-release copy-release
+
+lint:
+	cargo fmt
+	cargo clippy
