@@ -1,4 +1,4 @@
-name: Check, Lint, Test
+name: Check, Lint, Test, Build
 
 on: push
 
@@ -92,3 +92,36 @@ jobs:
         with:
           name: arcdps-chat-log-debug
           path: target/debug/arcdps_chat_log.dll
+
+  build-release:
+    name: Build Release
+    runs-on: windows-2022
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Run cargo build --release
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+      - name: Upload build
+        uses: actions/upload-artifact@v3
+        with:
+          name: arcdps-chat-log-release
+          path: target/release/arcdps_chat_log.dll
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: target/release/arcdps_chat_log.dll
