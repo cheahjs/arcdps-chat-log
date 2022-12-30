@@ -102,7 +102,7 @@ impl Plugin {
                     ui.same_line();
                     match &self.ui_state.tts_state {
                         super::state::TtsState::Loaded => {
-                            ui.text_colored(green, format!("Loaded",))
+                            ui.text_colored(green, "Loaded")
                         }
                         super::state::TtsState::Errored => {
                             ui.text_colored(red, "Error - check the logs")
