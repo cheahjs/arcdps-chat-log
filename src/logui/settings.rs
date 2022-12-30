@@ -72,6 +72,7 @@ pub struct ChatLogSettings {
     pub log_buffer: i32,
     pub color_settings: ColorSettings,
     pub filter_settings: FilterSettings,
+    pub hotkey: Option<u32>,
 }
 
 impl ChatLogSettings {
@@ -82,6 +83,7 @@ impl ChatLogSettings {
             log_buffer: 10000,
             color_settings: ColorSettings::new(),
             filter_settings: FilterSettings::new(),
+            hotkey: Some(LogUi::DEFAULT_HOTKEY),
         }
     }
 

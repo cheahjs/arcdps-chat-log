@@ -139,6 +139,12 @@ impl Plugin {
                         "This is the number of chat messages and squad updates to keep at a time",
                     );
                 }
+                render::input_key(
+                    ui,
+                    "##chatloghotkey",
+                    "Hotkey",
+                    &mut self.log_ui.settings.hotkey,
+                );
             }
             if let Some(_tab) = ui.tab_item("Notifications") {
                 ui.checkbox(
