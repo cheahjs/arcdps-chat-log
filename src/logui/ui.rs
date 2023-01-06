@@ -21,14 +21,29 @@ impl Component<&Tracker> for LogUi {
             .build();
 
         ui.checkbox("Squad", &mut self.settings.filter_settings.squad_message);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("/squad messages");
+        }
         ui.same_line();
         ui.checkbox("Party", &mut self.settings.filter_settings.party_message);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("/party messages");
+        }
         ui.same_line();
         ui.checkbox("Updates", &mut self.settings.filter_settings.squad_updates);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("Joins, leaves, subgroup/role changes, instance changes, ready checks");
+        }
         ui.same_line();
         ui.checkbox("Combat", &mut self.settings.filter_settings.combat_updates);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("Entering and exiting combat");
+        }
         ui.same_line();
         ui.checkbox("Others", &mut self.settings.filter_settings.others);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("Messages that don't fit in any other category");
+        }
 
         ui.checkbox(
             "Hover character names for account names",
