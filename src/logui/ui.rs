@@ -50,32 +50,50 @@ impl Component<&Tracker> for LogUi {
                 ui.input_text("Filter", &mut self.ui_props.account_filter)
                     .build();
                 if let Some(_child) = ChildWindow::new("chat_log_names_child").begin(ui) {
+                    ui.text_disabled("Tracked");
                     tracker
                         .seen_users
                         .iter()
+                        .filter(|(account_name, _)| {
+                            tracker.map.contains_key(*account_name)
+                        })
                         .filter(|(account_name, character_names)| {
-                            self.ui_props.account_filter.is_empty()
-                                || account_name.contains(&self.ui_props.account_filter)
-                                || character_names.iter().any(|character_name| {
-                                    character_name.contains(&self.ui_props.account_filter)
+                            LogUi::filter_user(
+                                &self.ui_props.account_filter,
+                                account_name,
+                                character_names,
+                            )
                                 })
+                        .for_each(|(account_name, character_names)| {
+                            LogUi::render_user(
+                                &mut self.ui_props.text_filter,
+                                ui,
+                                account_name,
+                                character_names,
+                            )
+                        });
+                    ui.separator();
+                    ui.text_disabled("Untracked");
+                    tracker
+                        .seen_users
+                        .iter()
+                        .filter(|(account_name, _)| {
+                            !tracker.map.contains_key(*account_name)
+                        })
+                        .filter(|(account_name, character_names)| {
+                            LogUi::filter_user(
+                                &self.ui_props.account_filter,
+                                account_name,
+                                character_names,
+                            )
                         })
                         .for_each(|(account_name, character_names)| {
-                            let mut label = account_name.to_owned();
-                            if !character_names.is_empty() {
-                                label = format!(
-                                    "{}\n{}",
-                                    label,
-                                    itertools::join(
-                                        character_names.iter().map(|x| format!("- {}", x)),
-                                        "\n"
+                            LogUi::render_user(
+                                &mut self.ui_props.text_filter,
+                                ui,
+                                account_name,
+                                character_names,
                                     )
-                                )
-                            }
-                            if Selectable::new(label).build(ui) {
-                                self.ui_props.text_filter = account_name.to_string();
-                            }
-                            ui.separator();
                         });
                 }
             }
@@ -105,6 +123,40 @@ impl Component<&Tracker> for LogUi {
                     ui.set_scroll_here_y_with_ratio(1.0);
                 }
             }
+        }
+    }
+}
+
+impl LogUi {
+    fn filter_user(
+        account_filter: &String,
+        account_name: &str,
+        character_names: &HashSet<String>,
+    ) -> bool {
+        account_filter.is_empty()
+            || account_name.contains(account_filter)
+            || character_names
+                .iter()
+                .any(|character_name| character_name.contains(account_filter))
+    }
+
+    fn render_user(
+        text_filter: &mut String,
+        ui: &Ui,
+        account_name: &str,
+        character_names: &HashSet<String>,
+    ) {
+        ui.separator();
+        let mut label = account_name.to_owned();
+        if !character_names.is_empty() {
+            label = format!(
+                "{}\n{}",
+                label,
+                itertools::join(character_names.iter().map(|x| format!("- {}", x)), "\n")
+            )
+        }
+        if Selectable::new(label).build(ui) {
+            *text_filter = account_name.to_string();
         }
     }
 }
