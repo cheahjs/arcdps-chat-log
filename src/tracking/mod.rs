@@ -5,6 +5,7 @@ use arcdps::{
     extras::{message::ChatMessageInfo, UserInfoOwned},
     strip_account_prefix,
 };
+use log::debug;
 
 #[derive(Debug)]
 pub struct PlayerInfo {
@@ -43,16 +44,19 @@ impl Tracker {
     }
 
     pub fn add_arc_player(&mut self, player: &Player) -> Option<Player> {
+        debug!("adding arc player: {:?}", player);
         self.insert_name_into_cache(&player.account, Some(&player.character));
         self.arc_id_map.insert(player.id, player.account.to_owned());
         match self.map.entry(player.account.to_owned()) {
             Entry::Occupied(entry) => {
+                debug!("adding arc player into existing entry");
                 let entry = entry.into_mut();
                 let old_info = entry.arc.as_ref().cloned();
                 entry.arc = Some(player.clone());
                 return old_info;
             }
             Entry::Vacant(entry) => {
+                debug!("adding arc player into new entry");
                 entry.insert(PlayerInfo::new_from_arc(player));
             }
         }
@@ -61,13 +65,16 @@ impl Tracker {
 
     pub fn remove_arc_player(&mut self, id: usize) -> Option<Player> {
         if let Some(account_name) = self.arc_id_map.get(&id) {
+            debug!("removing arc player: {}", account_name);
             if let Entry::Occupied(entry) = self.map.entry(account_name.to_owned()) {
                 let info = entry.get();
                 let old_info = info.arc.as_ref().cloned();
                 if info.extras.is_none() {
+                    debug!("player has no extras, removing from map");
                     entry.remove();
                 } else {
                     let info = entry.into_mut();
+                    debug!("player has extras, removing arc");
                     info.arc = None;
                 }
                 return old_info;
@@ -86,17 +93,20 @@ impl Tracker {
     }
 
     pub fn add_extras_player(&mut self, player: &UserInfoOwned) -> Option<UserInfoOwned> {
+        debug!("adding extras player {:?}", player);
         match &player.account_name {
             Some(account_name) => {
                 self.insert_name_into_cache(strip_account_prefix(account_name), None);
                 match self.map.entry(account_name.to_owned()) {
                     Entry::Occupied(entry) => {
+                        debug!("adding extras player into existing entry");
                         let entry = entry.into_mut();
                         let old_info = entry.extras.as_ref().cloned();
                         entry.extras = Some(player.clone());
                         old_info
                     }
                     Entry::Vacant(entry) => {
+                        debug!("adding extras player into new entry");
                         entry.insert(PlayerInfo::new_from_extras(player));
                         None
                     }
@@ -107,14 +117,17 @@ impl Tracker {
     }
 
     pub fn remove_extras_player(&mut self, player: &UserInfoOwned) -> Option<UserInfoOwned> {
+        debug!("removing extras player {:?}", player);
         match &player.account_name {
             Some(account_name) => match self.map.entry(account_name.to_owned()) {
                 Entry::Occupied(entry) => {
                     let info = entry.get();
                     let old_info = info.extras.as_ref().cloned();
                     if info.arc.is_none() {
+                        debug!("player has no arc, removing from map");
                         entry.remove();
                     } else {
+                        debug!("player has arc, removing extras");
                         let info = entry.into_mut();
                         info.extras = None;
                     }
