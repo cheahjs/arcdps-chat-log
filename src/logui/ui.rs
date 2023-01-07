@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use arc_util::ui::{render, Component, Ui, Windowable};
 use arcdps::imgui::{ChildWindow, Selectable, StyleVar};
 
@@ -69,16 +71,14 @@ impl Component<&Tracker> for LogUi {
                     tracker
                         .seen_users
                         .iter()
-                        .filter(|(account_name, _)| {
-                            tracker.map.contains_key(*account_name)
-                        })
+                        .filter(|(account_name, _)| tracker.map.contains_key(*account_name))
                         .filter(|(account_name, character_names)| {
                             LogUi::filter_user(
                                 &self.ui_props.account_filter,
                                 account_name,
                                 character_names,
                             )
-                                })
+                        })
                         .for_each(|(account_name, character_names)| {
                             LogUi::render_user(
                                 &mut self.ui_props.text_filter,
@@ -92,9 +92,7 @@ impl Component<&Tracker> for LogUi {
                     tracker
                         .seen_users
                         .iter()
-                        .filter(|(account_name, _)| {
-                            !tracker.map.contains_key(*account_name)
-                        })
+                        .filter(|(account_name, _)| !tracker.map.contains_key(*account_name))
                         .filter(|(account_name, character_names)| {
                             LogUi::filter_user(
                                 &self.ui_props.account_filter,
@@ -108,7 +106,7 @@ impl Component<&Tracker> for LogUi {
                                 ui,
                                 account_name,
                                 character_names,
-                                    )
+                            )
                         });
                 }
             }
