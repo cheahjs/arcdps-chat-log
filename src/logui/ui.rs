@@ -11,17 +11,17 @@ impl Windowable<&Tracker> for LogUi {
     const CONTEXT_MENU: bool = true;
     const DEFAULT_OPTIONS: bool = true;
 
-    fn render_menu(&mut self, _ui: &Ui, _props: &&Tracker) {}
-}
-
-impl Component<&Tracker> for LogUi {
-    fn render(&mut self, ui: &Ui, tracker: &Tracker) {
-        let _style = render::small_padding(ui);
-        let _border_style = ui.push_style_var(StyleVar::ChildBorderSize(1.0));
-
-        ui.input_text("Filter", &mut self.ui_props.text_filter)
-            .build();
-
+    fn render_menu(&mut self, ui: &Ui, _props: &&Tracker) {
+        ui.checkbox(
+            "Hover character names for account names",
+            &mut self
+                .settings
+                .filter_settings
+                .hover_char_name_for_account_name,
+        );
+        ui.checkbox("Show text filter", &mut self.settings.show_filters);
+        ui.checkbox("Show seen users", &mut self.settings.show_seen_users);
+        ui.separator();
         ui.checkbox("Squad", &mut self.settings.filter_settings.squad_message);
         if ui.is_item_hovered() {
             ui.tooltip_text("/squad messages");
@@ -46,76 +46,83 @@ impl Component<&Tracker> for LogUi {
         if ui.is_item_hovered() {
             ui.tooltip_text("Messages that don't fit in any other category");
         }
+        ui.separator();
+    }
+}
 
-        ui.checkbox(
-            "Hover character names for account names",
-            &mut self
-                .settings
-                .filter_settings
-                .hover_char_name_for_account_name,
-        );
+impl Component<&Tracker> for LogUi {
+    fn render(&mut self, ui: &Ui, tracker: &Tracker) {
+        let _style = render::small_padding(ui);
+        let _border_style = ui.push_style_var(StyleVar::ChildBorderSize(1.0));
+
+        if self.settings.show_filters {
+            ui.input_text("Filter", &mut self.ui_props.text_filter)
+                .build();
+        }
 
         if let Some(_child) = ChildWindow::new("chat_log_child_window").begin(ui) {
-            if let Some(_child) = ChildWindow::new("chat_log_names")
-                .horizontal_scrollbar(true)
-                .border(true)
-                .size([self.ui_props.account_width, 0.0])
-                .begin(ui)
-            {
-                ui.text("Seen Users");
-                ui.set_next_item_width(-ui.calc_text_size("Filter")[0] - 5.0);
-                ui.input_text("Filter", &mut self.ui_props.account_filter)
-                    .build();
-                if let Some(_child) = ChildWindow::new("chat_log_names_child").begin(ui) {
-                    ui.text_disabled("Tracked");
-                    tracker
-                        .seen_users
-                        .iter()
-                        .filter(|(account_name, _)| tracker.map.contains_key(*account_name))
-                        .filter(|(account_name, character_names)| {
-                            LogUi::filter_user(
-                                &self.ui_props.account_filter,
-                                account_name,
-                                character_names,
-                            )
-                        })
-                        .for_each(|(account_name, character_names)| {
-                            LogUi::render_user(
-                                &mut self.ui_props.text_filter,
-                                ui,
-                                account_name,
-                                character_names,
-                            )
-                        });
-                    ui.separator();
-                    ui.text_disabled("Untracked");
-                    tracker
-                        .seen_users
-                        .iter()
-                        .filter(|(account_name, _)| !tracker.map.contains_key(*account_name))
-                        .filter(|(account_name, character_names)| {
-                            LogUi::filter_user(
-                                &self.ui_props.account_filter,
-                                account_name,
-                                character_names,
-                            )
-                        })
-                        .for_each(|(account_name, character_names)| {
-                            LogUi::render_user(
-                                &mut self.ui_props.text_filter,
-                                ui,
-                                account_name,
-                                character_names,
-                            )
-                        });
+            if self.settings.show_seen_users {
+                if let Some(_child) = ChildWindow::new("chat_log_names")
+                    .horizontal_scrollbar(true)
+                    .border(true)
+                    .size([self.ui_props.account_width, 0.0])
+                    .begin(ui)
+                {
+                    ui.text("Seen Users");
+                    ui.set_next_item_width(-ui.calc_text_size("Filter")[0] - 5.0);
+                    ui.input_text("Filter", &mut self.ui_props.account_filter)
+                        .build();
+                    if let Some(_child) = ChildWindow::new("chat_log_names_child").begin(ui) {
+                        ui.text_disabled("Tracked");
+                        tracker
+                            .seen_users
+                            .iter()
+                            .filter(|(account_name, _)| tracker.map.contains_key(*account_name))
+                            .filter(|(account_name, character_names)| {
+                                LogUi::filter_user(
+                                    &self.ui_props.account_filter,
+                                    account_name,
+                                    character_names,
+                                )
+                            })
+                            .for_each(|(account_name, character_names)| {
+                                LogUi::render_user(
+                                    &mut self.ui_props.text_filter,
+                                    ui,
+                                    account_name,
+                                    character_names,
+                                )
+                            });
+                        ui.separator();
+                        ui.text_disabled("Untracked");
+                        tracker
+                            .seen_users
+                            .iter()
+                            .filter(|(account_name, _)| !tracker.map.contains_key(*account_name))
+                            .filter(|(account_name, character_names)| {
+                                LogUi::filter_user(
+                                    &self.ui_props.account_filter,
+                                    account_name,
+                                    character_names,
+                                )
+                            })
+                            .for_each(|(account_name, character_names)| {
+                                LogUi::render_user(
+                                    &mut self.ui_props.text_filter,
+                                    ui,
+                                    account_name,
+                                    character_names,
+                                )
+                            });
+                    }
                 }
+                ui.same_line_with_spacing(0.0, 0.0);
+                ui.invisible_button("verticle_splitter", [4.0, ui.content_region_avail()[1]]);
+                if ui.is_item_active() {
+                    self.ui_props.account_width += ui.io().mouse_delta[0];
+                }
+                ui.same_line_with_spacing(0.0, 0.0);
             }
-            ui.same_line_with_spacing(0.0, 0.0);
-            ui.invisible_button("verticle_splitter", [4.0, ui.content_region_avail()[1]]);
-            if ui.is_item_active() {
-                self.ui_props.account_width += ui.io().mouse_delta[0];
-            }
-            ui.same_line_with_spacing(0.0, 0.0);
 
             if let Some(_child) = ChildWindow::new("chat_log").border(true).begin(ui) {
                 self.buffer
