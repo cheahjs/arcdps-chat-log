@@ -73,6 +73,8 @@ pub struct ChatLogSettings {
     pub color_settings: ColorSettings,
     pub filter_settings: FilterSettings,
     pub hotkey: Option<u32>,
+    pub show_filters: bool,
+    pub show_seen_users: bool,
 }
 
 impl ChatLogSettings {
@@ -84,6 +86,8 @@ impl ChatLogSettings {
             color_settings: ColorSettings::new(),
             filter_settings: FilterSettings::new(),
             hotkey: Some(LogUi::DEFAULT_HOTKEY),
+            show_filters: true,
+            show_seen_users: true,
         }
     }
 
