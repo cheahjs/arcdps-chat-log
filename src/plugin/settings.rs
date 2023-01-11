@@ -54,9 +54,10 @@ impl Plugin {
                     ui.text("Chat database:");
                     ui.same_line();
                     match &self.chat_database {
-                        Some(chat_database) => {
-                            ui.text_colored(green, format!("Loaded ({})", chat_database.log_path))
-                        }
+                        Some(chat_database) => ui.text_colored(
+                            green,
+                            format!("Loaded ({})", chat_database.lock().unwrap().log_path),
+                        ),
                         None => ui.text_colored(red, "Error - check the logs"),
                     }
                 });

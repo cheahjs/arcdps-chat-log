@@ -3,6 +3,8 @@ mod settings;
 pub mod state;
 pub mod ui;
 
+use std::sync::{Arc, Mutex};
+
 use anyhow::Context;
 use arc_util::{
     settings::Settings,
@@ -32,7 +34,7 @@ pub struct Plugin {
     pub ui_state: UiState,
     pub self_account_name: String,
     game_start: i64,
-    chat_database: Option<ChatDatabase>,
+    chat_database: Option<Arc<Mutex<ChatDatabase>>>,
     tts: TextToSpeech,
     tracker: Tracker,
 }
@@ -72,7 +74,10 @@ impl Plugin {
         match ChatDatabase::try_new(&self.log_ui.settings.log_path, self.game_start)
             .context("failed to init database")
         {
-            Ok(chat_database) => self.chat_database = Some(chat_database),
+            Ok(chat_database) => {
+                self.chat_database = Some(Arc::new(Mutex::new(chat_database)));
+                self.log_ui.chat_database = self.chat_database.clone();
+            }
             Err(err) => error!("{}", err),
         }
 
@@ -110,8 +115,8 @@ impl Plugin {
     }
 
     pub fn release(&mut self) {
-        if let Some(chat_database) = self.chat_database.as_mut() {
-            chat_database.release();
+        if let Some(chat_database) = &self.chat_database {
+            chat_database.lock().unwrap().release();
         }
         let mut settings = Settings::from_file(SETTINGS_FILE);
         settings.store_component(&self.log_ui);

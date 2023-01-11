@@ -1,20 +1,33 @@
+pub mod insert;
+pub mod query;
+
 use std::{
-    sync::mpsc::{self, Sender},
+    num::NonZeroUsize,
+    sync::{
+        mpsc::{self, Sender},
+        Arc, Mutex,
+    },
     thread::Builder,
 };
 
 use anyhow::Context;
-use arcdps::extras::message::{ChatMessageInfo, ChatMessageInfoOwned};
 use log::error;
+use lru::LruCache;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::params;
 use rusqlite_migration::{Migrations, M};
+
+use self::{
+    insert::DbInsert,
+    query::{DbQuery, QueriedNote},
+};
 
 pub struct ChatDatabase {
     pub log_path: String,
     pub connection_pool: Option<Pool<SqliteConnectionManager>>,
-    pub insert_channel: Option<Sender<ChatMessageInfoOwned>>,
+    pub insert_channel: Option<Mutex<Sender<DbInsert>>>,
+    pub query_channel: Option<Mutex<Sender<DbQuery>>>,
+    pub note_cache: Arc<Mutex<LruCache<String, QueriedNote>>>,
 }
 
 impl ChatDatabase {
@@ -26,6 +39,7 @@ impl ChatDatabase {
             M::up(include_str!(
                 "../../migrations/2022-08-07-messages-timestamp-index.sql"
             )),
+            M::up(include_str!("../../migrations/2023-01-05-create-notes.sql")),
         ]);
 
         let manager = SqliteConnectionManager::file(log_path);
@@ -40,7 +54,7 @@ impl ChatDatabase {
             .pragma_update(None, "journal_mode", "WAL")
             .context("failed to set journal mode")?;
 
-        let (insert_send, insert_recv) = mpsc::channel::<ChatMessageInfoOwned>();
+        let (insert_send, insert_recv) = mpsc::channel::<DbInsert>();
         let clone_pool = pool.clone();
         let _insert_thread = Builder::new()
             .name("chat_insert".to_owned())
@@ -53,21 +67,27 @@ impl ChatDatabase {
                 },
             );
 
+        let (query_send, query_recv) = mpsc::channel::<DbQuery>();
+        let clone_pool = pool.clone();
+        let note_cache = Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(100).unwrap())));
+        let clone_note_cache = note_cache.clone();
+        let _query_thread = Builder::new().name("chat_query".to_owned()).spawn(move || {
+            match Self::query_thread(clone_pool, query_recv, clone_note_cache) {
+                Ok(_) => {}
+                Err(err) => {
+                    error!("query thread failed: {}", err);
+                }
+            }
+        });
+
         Ok(Self {
             log_path: log_path.to_string(),
             connection_pool: Some(pool),
-            insert_channel: Some(insert_send),
+            insert_channel: Some(Mutex::new(insert_send)),
+            query_channel: Some(Mutex::new(query_send)),
+            note_cache,
             // game_start,
         })
-    }
-
-    pub fn process_message(&mut self, message: &ChatMessageInfo) -> Result<(), anyhow::Error> {
-        if let Some(insert_channel) = &self.insert_channel {
-            insert_channel
-                .send(message.to_owned().into())
-                .context("failed to insert message into message channel")?;
-        }
-        Ok(())
     }
 
     pub fn release(&mut self) {
@@ -75,52 +95,10 @@ impl ChatDatabase {
             // take channel out to drop it out of scope
             // this should cause the recv channel to close and the pool
             let _ = self.insert_channel.take();
+            let _ = self.query_channel.take();
             // take pool out to drop it out of scope
             // this should close all connections
             let _ = self.connection_pool.take();
-        }
-    }
-
-    fn insert_thread(
-        game_start: i64,
-        pool: Pool<SqliteConnectionManager>,
-        recv_chan: mpsc::Receiver<ChatMessageInfoOwned>,
-    ) -> anyhow::Result<()> {
-        let connection = pool.get().context("failed to get database connection")?;
-        loop {
-            let event = recv_chan.recv();
-            if let Ok(message) = event {
-                let mut statement = connection
-                    .prepare_cached(
-                        "INSERT INTO messages (
-                                            channel_id,
-                                            channel_type,
-                                            subgroup,
-                                            is_broadcast,
-                                            timestamp,
-                                            account_name,
-                                            character_name,
-                                            text,
-                                            game_start
-                                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                    )
-                    .context("failed to prepare statement")?;
-                statement
-                    .execute(params![
-                        message.channel_id,
-                        message.channel_type.to_string(),
-                        message.subgroup,
-                        message.is_broadcast,
-                        message.timestamp,
-                        message.account_name,
-                        message.character_name,
-                        message.text,
-                        game_start
-                    ])
-                    .context("failed to insert message")?;
-            } else if let Err(err) = event {
-                return Err(anyhow::Error::new(err).context("failed to receive insert event"));
-            }
         }
     }
 }

@@ -1,11 +1,21 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    ptr,
+    sync::{Arc, Mutex},
+};
 
 use arc_util::ui::{render, Component, Ui, Windowable};
-use arcdps::imgui::{ChildWindow, Selectable, StyleVar};
+use arcdps::imgui::{sys, ChildWindow, Selectable, StyleVar};
+use log::error;
 
-use crate::tracking::Tracker;
+use crate::{
+    db::{insert::NoteToAdd, query::QueriedNote, ChatDatabase},
+    tracking::Tracker,
+};
 
 use super::LogUi;
+
+const DATETIME_FORMAT: &str = "%y-%m-%d %H:%M:%S";
 
 impl Windowable<&Tracker> for LogUi {
     const CONTEXT_MENU: bool = true;
@@ -87,6 +97,7 @@ impl Component<&Tracker> for LogUi {
                             })
                             .for_each(|(account_name, character_names)| {
                                 LogUi::render_user(
+                                    &self.chat_database,
                                     &mut self.ui_props.text_filter,
                                     ui,
                                     account_name,
@@ -108,6 +119,7 @@ impl Component<&Tracker> for LogUi {
                             })
                             .for_each(|(account_name, character_names)| {
                                 LogUi::render_user(
+                                    &self.chat_database,
                                     &mut self.ui_props.text_filter,
                                     ui,
                                     account_name,
@@ -161,6 +173,7 @@ impl LogUi {
     }
 
     fn render_user(
+        chat_database: &Option<Arc<Mutex<ChatDatabase>>>,
         text_filter: &mut String,
         ui: &Ui,
         account_name: &str,
@@ -178,5 +191,101 @@ impl LogUi {
         if Selectable::new(label).build(ui) {
             *text_filter = account_name.to_string();
         }
+        item_context_menu(|| {
+            if let Some(chat_database) = chat_database {
+                let note = chat_database
+                    .lock()
+                    .unwrap()
+                    .get_or_query_note(account_name);
+
+                ui.text_disabled("Note");
+                let mut note_text = match &note {
+                    QueriedNote::Success(note) => note.note.to_owned(),
+                    QueriedNote::Error | QueriedNote::NotFound => String::new(),
+                    QueriedNote::Pending => "Loading".to_string(),
+                };
+                let read_only = match &note {
+                    QueriedNote::Success(_) | QueriedNote::Error | QueriedNote::NotFound => false,
+                    QueriedNote::Pending => true,
+                };
+                if ui
+                    .input_text("", &mut note_text)
+                    .read_only(read_only)
+                    .build()
+                {
+                    if let Err(err) = chat_database
+                        .lock()
+                        .unwrap()
+                        .insert_note(NoteToAdd::new(account_name, &note_text))
+                    {
+                        error!("failed to insert note: {}", err);
+                    }
+                }
+                if let QueriedNote::Success(note) = note {
+                    ui.text_disabled(format!(
+                        "Added: {}",
+                        note.note_added().format(DATETIME_FORMAT)
+                    ));
+                    if note.note_added != note.note_updated {
+                        ui.text_disabled(format!(
+                            "Updated: {}",
+                            note.note_updated().format(DATETIME_FORMAT)
+                        ));
+                    }
+                    if ui.button("Delete Note") {
+                        if let Err(err) = chat_database.lock().unwrap().delete_note(account_name) {
+                            error!("failed to delete note: {}", err);
+                        }
+                    }
+                }
+            } else {
+                ui.text_disabled("Database not available")
+            }
+        });
+        if ui.is_item_hovered() {
+            let _tooltip = ui.begin_tooltip();
+            if let Some(chat_database) = chat_database {
+                let note = chat_database
+                    .lock()
+                    .unwrap()
+                    .get_or_query_note(account_name);
+                match note {
+                    QueriedNote::Success(note) => {
+                        ui.text(&note.note);
+                        ui.text_disabled(format!(
+                            "Added: {}",
+                            note.note_added().format(DATETIME_FORMAT)
+                        ));
+                        if note.note_added != note.note_updated {
+                            ui.text_disabled(format!(
+                                "Updated: {}",
+                                note.note_updated().format(DATETIME_FORMAT)
+                            ));
+                        }
+                    }
+                    QueriedNote::Error => {
+                        ui.text_disabled("Failed to fetch note");
+                    }
+                    QueriedNote::NotFound => {
+                        ui.text_disabled("No note");
+                    }
+                    QueriedNote::Pending => {
+                        ui.text_disabled("Loading");
+                    }
+                }
+            } else {
+                ui.text_disabled("Database not available")
+            }
+        }
+    }
+}
+
+/// Renders a right-click context menu for the last item.
+pub fn item_context_menu(contents: impl FnOnce()) {
+    if unsafe {
+        sys::igBeginPopupContextItem(ptr::null(), sys::ImGuiPopupFlags_MouseButtonRight as i32)
+    } {
+        contents();
+        unsafe { sys::igEndPopup() };
     }
 }

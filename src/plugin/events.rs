@@ -26,7 +26,10 @@ impl Plugin {
         self.log_ui.buffer.process_message(chat_message_info);
         if self.log_ui.settings.log_enabled {
             if let Some(chat_database) = self.chat_database.as_mut() {
-                chat_database.process_message(chat_message_info)?;
+                chat_database
+                    .lock()
+                    .unwrap()
+                    .process_message(chat_message_info)?;
             }
         }
         Ok(())
