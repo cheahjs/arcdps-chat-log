@@ -123,7 +123,7 @@ impl ChatDatabase {
                                             game_start
                                      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
                             )
-                            .context("failed to prepare statement")?;
+                            .context("failed to prepare message insert statement")?;
                         statement
                             .execute(params![
                                 message.channel_id,
@@ -141,13 +141,15 @@ impl ChatDatabase {
                     DbInsert::AddNote(note) => {
                         let mut statement = connection
                             .prepare_cached(
-                                "INSERT OR IGNORE INTO notes (
-                                            account,
+                                "INSERT INTO notes (
+                                            account_name,
                                             note_added,
-                                     ) VALUES (?1, ?2)
-                                     UPDATE notes SET note_updated=?2, note=?3 WHERE account=?1",
+                                            note_updated,
+                                            note
+                                     ) VALUES (?1, ?2, ?2, ?3)
+                                     ON CONFLICT (account_name) DO UPDATE SET note_updated=?2, note=?3",
                             )
-                            .context("failed to prepare statement")?;
+                            .context("failed to prepare note insert statement")?;
                         statement
                             .execute(params![
                                 note.account_name,
@@ -158,8 +160,8 @@ impl ChatDatabase {
                     }
                     DbInsert::DeleteNote(account_name) => {
                         let mut statement = connection
-                            .prepare_cached("DELETE FROM notes WHERE account=?1")
-                            .context("failed to prepare statement")?;
+                            .prepare_cached("DELETE FROM notes WHERE account_name=?1")
+                            .context("failed to prepare delete note statement")?;
                         statement
                             .execute(params![account_name,])
                             .context("failed to delete note")?;

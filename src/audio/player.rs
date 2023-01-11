@@ -28,7 +28,7 @@ impl AudioPlayer {
     pub fn play_track(&self, track: &AudioTrack) {
         if let Some(sender) = &self.sender {
             if let Err(err) = sender.send(AudioSignal::PlayTrack(track.clone())) {
-                error!("error sending audio: {}", err);
+                error!("error sending audio: {:#}", err);
             }
         }
     }
@@ -46,17 +46,17 @@ impl AudioPlayer {
                     Ok(event) => match event {
                         AudioSignal::PlayTrack(track) => {
                             if let Err(err) = track.play(&stream_handle) {
-                                error!("failed to play track: {}", err);
+                                error!("failed to play track: {:#}", err);
                             }
                         }
                         AudioSignal::Terminate => break,
                     },
                     Err(err) => {
-                        error!("failed to recieve audio signals: {}", err);
+                        error!("failed to recieve audio signals: {:#}", err);
                     }
                 }
             },
-            Err(err) => error!("failed to create output stream: {}", err),
+            Err(err) => error!("failed to create output stream: {:#}", err),
         }
     }
 }

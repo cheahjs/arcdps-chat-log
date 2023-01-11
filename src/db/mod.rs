@@ -62,7 +62,7 @@ impl ChatDatabase {
                 move || match Self::insert_thread(game_start, clone_pool, insert_recv) {
                     Ok(_) => {}
                     Err(err) => {
-                        error!("insert thread failed: {}", err);
+                        error!("insert thread failed: {:#}", err);
                     }
                 },
             );
@@ -75,7 +75,7 @@ impl ChatDatabase {
             match Self::query_thread(clone_pool, query_recv, clone_note_cache) {
                 Ok(_) => {}
                 Err(err) => {
-                    error!("query thread failed: {}", err);
+                    error!("query thread failed: {:#}", err);
                 }
             }
         });

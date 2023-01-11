@@ -69,7 +69,7 @@ impl ChatDatabase {
                 .unwrap()
                 .send(DbQuery::Note(account_name.to_owned()))
             {
-                error!("failed to send query: {}", err);
+                error!("failed to send query: {:#}", err);
             }
         }
         QueriedNote::Pending
@@ -113,7 +113,7 @@ impl ChatDatabase {
                                         .put(account_name.to_owned(), QueriedNote::Success(note));
                                 }
                                 Err(err) => {
-                                    error!("failed to query note: {}", err);
+                                    error!("failed to query note: {:#}", err);
                                     note_cache
                                         .lock()
                                         .unwrap()

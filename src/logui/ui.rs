@@ -213,12 +213,14 @@ impl LogUi {
                     .read_only(read_only)
                     .build()
                 {
-                    if let Err(err) = chat_database
-                        .lock()
-                        .unwrap()
-                        .insert_note(NoteToAdd::new(account_name, &note_text))
-                    {
-                        error!("failed to insert note: {}", err);
+                    if ui.is_item_edited() {
+                        if let Err(err) = chat_database
+                            .lock()
+                            .unwrap()
+                            .insert_note(NoteToAdd::new(account_name, &note_text))
+                        {
+                            error!("failed to insert note: {:#}", err);
+                        }
                     }
                 }
                 if let QueriedNote::Success(note) = note {
@@ -234,7 +236,7 @@ impl LogUi {
                     }
                     if ui.button("Delete Note") {
                         if let Err(err) = chat_database.lock().unwrap().delete_note(account_name) {
-                            error!("failed to delete note: {}", err);
+                            error!("failed to delete note: {:#}", err);
                         }
                     }
                 }

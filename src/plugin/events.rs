@@ -19,7 +19,7 @@ impl Plugin {
             .notifications
             .process_message(chat_message_info, &self.self_account_name)
         {
-            error!("failed to process message for notifications: {}", err);
+            error!("failed to process message for notifications: {:#}", err);
         }
         self.tts
             .process_message(chat_message_info, &self.self_account_name);

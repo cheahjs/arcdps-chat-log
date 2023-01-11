@@ -176,7 +176,7 @@ impl Plugin {
                 .build();
                 if ui.is_item_deactivated_after_edit() {
                     if let Err(err) = self.notifications.update_ping_track() {
-                        error!("failed to update ping track: {}", err);
+                        error!("failed to update ping track: {:#}", err);
                     }
                 }
 

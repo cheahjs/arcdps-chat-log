@@ -78,7 +78,7 @@ impl Plugin {
                 self.chat_database = Some(Arc::new(Mutex::new(chat_database)));
                 self.log_ui.chat_database = self.chat_database.clone();
             }
-            Err(err) => error!("{}", err),
+            Err(err) => error!("{:#}", err),
         }
 
         match self
@@ -89,7 +89,7 @@ impl Plugin {
             Ok(_) => self.ui_state.notifications_state = NotificationsState::Loaded,
             Err(err) => {
                 self.ui_state.notifications_state = NotificationsState::Errored;
-                error!("{}", err)
+                error!("{:#}", err)
             }
         }
 
@@ -99,7 +99,7 @@ impl Plugin {
             }
             Err(err) => {
                 self.ui_state.mumblelink_state = MumbleLinkState::Errored;
-                error!("{}", err)
+                error!("{:#}", err)
             }
         }
 
@@ -107,7 +107,7 @@ impl Plugin {
             Ok(_) => self.ui_state.tts_state = TtsState::Loaded,
             Err(err) => {
                 self.ui_state.tts_state = TtsState::Errored;
-                error!("{}", err)
+                error!("{:#}", err)
             }
         }
 
