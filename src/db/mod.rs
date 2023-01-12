@@ -2,7 +2,7 @@ pub mod insert;
 pub mod query;
 
 use std::{
-    num::NonZeroUsize,
+    collections::HashMap,
     sync::{
         mpsc::{self, Sender},
         Arc, Mutex,
@@ -12,7 +12,6 @@ use std::{
 
 use anyhow::Context;
 use log::error;
-use lru::LruCache;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite_migration::{Migrations, M};
@@ -27,7 +26,7 @@ pub struct ChatDatabase {
     pub connection_pool: Option<Pool<SqliteConnectionManager>>,
     pub insert_channel: Option<Mutex<Sender<DbInsert>>>,
     pub query_channel: Option<Mutex<Sender<DbQuery>>>,
-    pub note_cache: Arc<Mutex<LruCache<String, QueriedNote>>>,
+    pub note_cache: Arc<Mutex<HashMap<String, QueriedNote>>>,
 }
 
 impl ChatDatabase {
@@ -69,7 +68,7 @@ impl ChatDatabase {
 
         let (query_send, query_recv) = mpsc::channel::<DbQuery>();
         let clone_pool = pool.clone();
-        let note_cache = Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(100).unwrap())));
+        let note_cache = Arc::new(Mutex::new(HashMap::new()));
         let clone_note_cache = note_cache.clone();
         let _query_thread = Builder::new().name("chat_query".to_owned()).spawn(move || {
             match Self::query_thread(clone_pool, query_recv, clone_note_cache) {

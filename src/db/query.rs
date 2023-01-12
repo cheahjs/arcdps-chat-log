@@ -1,9 +1,11 @@
-use std::sync::{mpsc, Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{mpsc, Arc, Mutex},
+};
 
 use anyhow::Context;
 use chrono::TimeZone;
 use log::error;
-use lru::LruCache;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::params;
@@ -62,7 +64,7 @@ impl ChatDatabase {
         self.note_cache
             .lock()
             .unwrap()
-            .push(account_name.to_owned(), QueriedNote::Pending);
+            .insert(account_name.to_owned(), QueriedNote::Pending);
         if let Some(query_channel) = &self.query_channel {
             if let Err(err) = query_channel
                 .lock()
@@ -78,7 +80,7 @@ impl ChatDatabase {
     pub(crate) fn query_thread(
         pool: Pool<SqliteConnectionManager>,
         recv_chan: mpsc::Receiver<DbQuery>,
-        note_cache: Arc<Mutex<LruCache<String, QueriedNote>>>,
+        note_cache: Arc<Mutex<HashMap<String, QueriedNote>>>,
     ) -> anyhow::Result<()> {
         let connection = pool.get().context("failed to get database connection")?;
         loop {
@@ -107,17 +109,17 @@ impl ChatDatabase {
                             found = true;
                             match note {
                                 Ok(note) => {
-                                    note_cache
-                                        .lock()
-                                        .unwrap()
-                                        .put(account_name.to_owned(), QueriedNote::Success(note));
+                                    note_cache.lock().unwrap().insert(
+                                        account_name.to_owned(),
+                                        QueriedNote::Success(note),
+                                    );
                                 }
                                 Err(err) => {
                                     error!("failed to query note: {:#}", err);
                                     note_cache
                                         .lock()
                                         .unwrap()
-                                        .put(account_name.to_owned(), QueriedNote::Error);
+                                        .insert(account_name.to_owned(), QueriedNote::Error);
                                 }
                             }
                         }
@@ -125,7 +127,7 @@ impl ChatDatabase {
                             note_cache
                                 .lock()
                                 .unwrap()
-                                .put(account_name.to_owned(), QueriedNote::NotFound);
+                                .insert(account_name.to_owned(), QueriedNote::NotFound);
                         }
                     }
                 }

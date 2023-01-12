@@ -68,14 +68,14 @@ impl ChatDatabase {
                         let mut existing_note = existing_note.clone();
                         existing_note.note = new_note.note;
                         existing_note.note_updated = new_note.note_updated;
-                        note_cache.put(note.account_name, QueriedNote::Success(existing_note));
+                        note_cache.insert(note.account_name, QueriedNote::Success(existing_note));
                     }
                     QueriedNote::Error | QueriedNote::NotFound | QueriedNote::Pending => {
-                        note_cache.put(note.account_name, QueriedNote::Success(new_note));
+                        note_cache.insert(note.account_name, QueriedNote::Success(new_note));
                     }
                 },
                 None => {
-                    note_cache.put(note.account_name, QueriedNote::Success(new_note));
+                    note_cache.insert(note.account_name, QueriedNote::Success(new_note));
                 }
             }
         }
@@ -93,7 +93,7 @@ impl ChatDatabase {
             self.note_cache
                 .lock()
                 .unwrap()
-                .push(account_name.to_owned(), super::query::QueriedNote::NotFound);
+                .insert(account_name.to_owned(), super::query::QueriedNote::NotFound);
         }
         Ok(())
     }

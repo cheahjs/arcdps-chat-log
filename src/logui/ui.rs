@@ -188,15 +188,18 @@ impl LogUi {
                 itertools::join(character_names.iter().map(|x| format!("- {}", x)), "\n")
             )
         }
+        let note = chat_database.as_ref().map(|chat_database| {
+            chat_database
+                .lock()
+                .unwrap()
+                .get_or_query_note(account_name)
+        });
         if Selectable::new(label).build(ui) {
             *text_filter = account_name.to_string();
         }
         item_context_menu(|| {
             if let Some(chat_database) = chat_database {
-                let note = chat_database
-                    .lock()
-                    .unwrap()
-                    .get_or_query_note(account_name);
+                let note = note.as_ref().unwrap();
 
                 ui.text_disabled("Note");
                 let mut note_text = match &note {
@@ -212,15 +215,14 @@ impl LogUi {
                     .input_text("", &mut note_text)
                     .read_only(read_only)
                     .build()
+                    && ui.is_item_edited()
                 {
-                    if ui.is_item_edited() {
-                        if let Err(err) = chat_database
-                            .lock()
-                            .unwrap()
-                            .insert_note(NoteToAdd::new(account_name, &note_text))
-                        {
-                            error!("failed to insert note: {:#}", err);
-                        }
+                    if let Err(err) = chat_database
+                        .lock()
+                        .unwrap()
+                        .insert_note(NoteToAdd::new(account_name, &note_text))
+                    {
+                        error!("failed to insert note: {:#}", err);
                     }
                 }
                 if let QueriedNote::Success(note) = note {
@@ -246,11 +248,8 @@ impl LogUi {
         });
         if ui.is_item_hovered() {
             let _tooltip = ui.begin_tooltip();
-            if let Some(chat_database) = chat_database {
-                let note = chat_database
-                    .lock()
-                    .unwrap()
-                    .get_or_query_note(account_name);
+            if chat_database.is_some() {
+                let note = note.as_ref().unwrap();
                 match note {
                     QueriedNote::Success(note) => {
                         ui.text(&note.note);
