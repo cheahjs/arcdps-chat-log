@@ -67,11 +67,13 @@ impl Plugin {
                                     &player.character,
                                     Some(&player.account),
                                     None,
+                                    None,
                                 ));
                             } else {
                                 parts.push(LogPart::new(
                                     &player.character,
                                     Some(&player.account),
+                                    None,
                                     None,
                                 ));
                                 parts.push(LogPart::new_no_color(" has entered combat"));
@@ -88,11 +90,13 @@ impl Plugin {
                                     &player.character,
                                     Some(&player.account),
                                     None,
+                                    None,
                                 ));
                             } else {
                                 parts.push(LogPart::new(
                                     &player.character,
                                     Some(&player.account),
+                                    None,
                                     None,
                                 ));
                                 parts.push(LogPart::new_no_color(" has left combat"));
@@ -120,11 +124,13 @@ impl Plugin {
                                         &player.character,
                                         Some(&player.account),
                                         None,
+                                        None,
                                     ));
                                 } else {
                                     parts.push(LogPart::new(
                                         &player.character,
                                         Some(&player.account),
+                                        None,
                                         None,
                                     ));
                                     parts.push(LogPart::new_no_color(" has joined your instance"));
@@ -144,11 +150,13 @@ impl Plugin {
                                         &player.character,
                                         Some(&player.account),
                                         None,
+                                        None,
                                     ));
                                 } else {
                                     parts.push(LogPart::new(
                                         &player.character,
                                         Some(&player.account),
+                                        None,
                                         None,
                                     ));
                                     parts.push(LogPart::new_no_color(" has left your instance"));
