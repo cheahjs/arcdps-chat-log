@@ -1,11 +1,28 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    ptr,
+    sync::{Arc, Mutex},
+};
 
 use arc_util::ui::{render, Component, Ui, Windowable};
-use arcdps::imgui::{ChildWindow, Selectable, StyleVar};
+use arcdps::{
+    exports::{self, CoreColor},
+    imgui::{sys, ChildWindow, ColorEdit, Selectable, StyleColor, StyleVar},
+};
+use log::error;
 
-use crate::tracking::Tracker;
+use crate::{
+    db::{
+        insert::{NoteColorUpdate, NoteToAdd},
+        query::QueriedNote,
+        ChatDatabase,
+    },
+    tracking::Tracker,
+};
 
 use super::LogUi;
+
+const DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
 impl Windowable<&Tracker> for LogUi {
     const CONTEXT_MENU: bool = true;
@@ -87,6 +104,7 @@ impl Component<&Tracker> for LogUi {
                             })
                             .for_each(|(account_name, character_names)| {
                                 LogUi::render_user(
+                                    &self.chat_database,
                                     &mut self.ui_props.text_filter,
                                     ui,
                                     account_name,
@@ -108,6 +126,7 @@ impl Component<&Tracker> for LogUi {
                             })
                             .for_each(|(account_name, character_names)| {
                                 LogUi::render_user(
+                                    &self.chat_database,
                                     &mut self.ui_props.text_filter,
                                     ui,
                                     account_name,
@@ -161,6 +180,7 @@ impl LogUi {
     }
 
     fn render_user(
+        chat_database: &Option<Arc<Mutex<ChatDatabase>>>,
         text_filter: &mut String,
         ui: &Ui,
         account_name: &str,
@@ -175,8 +195,137 @@ impl LogUi {
                 itertools::join(character_names.iter().map(|x| format!("- {}", x)), "\n")
             )
         }
-        if Selectable::new(label).build(ui) {
-            *text_filter = account_name.to_string();
+        let note = chat_database.as_ref().map(|chat_database| {
+            chat_database
+                .lock()
+                .unwrap()
+                .get_or_query_note(account_name)
+        });
+        {
+            let _color_token = if let Some(QueriedNote::Success(note)) = &note {
+                note.color.map(|color| {
+                    ui.push_style_color(StyleColor::Text, [color[0], color[1], color[2], 1.0])
+                })
+            } else {
+                None
+            };
+            if Selectable::new(label).build(ui) {
+                *text_filter = account_name.to_string();
+            }
         }
+        item_context_menu(|| {
+            if let Some(chat_database) = chat_database {
+                let note = note.as_ref().unwrap();
+
+                ui.text_disabled("Note");
+                let mut note_text = match &note {
+                    QueriedNote::Success(note) => note.note.to_owned(),
+                    QueriedNote::Error | QueriedNote::NotFound => String::new(),
+                    QueriedNote::Pending => "Loading".to_string(),
+                };
+                let read_only = match &note {
+                    QueriedNote::Success(_) | QueriedNote::Error | QueriedNote::NotFound => false,
+                    QueriedNote::Pending => true,
+                };
+                if ui
+                    .input_text("", &mut note_text)
+                    .read_only(read_only)
+                    .build()
+                    && ui.is_item_edited()
+                {
+                    if let Err(err) = chat_database
+                        .lock()
+                        .unwrap()
+                        .insert_note(NoteToAdd::new(account_name, &note_text))
+                    {
+                        error!("failed to insert note: {:#}", err);
+                    }
+                }
+                if let QueriedNote::Success(note) = note {
+                    let colors = exports::colors();
+                    let white = colors
+                        .core(CoreColor::White)
+                        .unwrap_or([1.0, 1.0, 1.0, 1.0]);
+                    let white: [f32; 3] = [white[0], white[1], white[2]];
+                    let mut note_color = note.color.map_or(white, |color| color);
+                    if ColorEdit::new("Highlight color", &mut note_color)
+                        .alpha(false)
+                        .build(ui)
+                    {
+                        let new_note_color = if note_color != white {
+                            Some(note_color)
+                        } else {
+                            None
+                        };
+                        if note_color != white {
+                            if let Err(err) = chat_database.lock().unwrap().update_note_color(
+                                NoteColorUpdate::new(account_name, new_note_color),
+                            ) {
+                                error!("failed to update note color: {:#}", err);
+                            }
+                        }
+                    }
+                    ui.text_disabled(format!(
+                        "Added: {}",
+                        note.note_added().format(DATETIME_FORMAT)
+                    ));
+                    if note.note_added != note.note_updated {
+                        ui.text_disabled(format!(
+                            "Updated: {}",
+                            note.note_updated().format(DATETIME_FORMAT)
+                        ));
+                    }
+                    if ui.button("Delete Note") {
+                        if let Err(err) = chat_database.lock().unwrap().delete_note(account_name) {
+                            error!("failed to delete note: {:#}", err);
+                        }
+                    }
+                }
+            } else {
+                ui.text_disabled("Database not available")
+            }
+        });
+        if ui.is_item_hovered() {
+            let _tooltip = ui.begin_tooltip();
+            if chat_database.is_some() {
+                let note = note.as_ref().unwrap();
+                match note {
+                    QueriedNote::Success(note) => {
+                        ui.text(&note.note);
+                        ui.text_disabled(format!(
+                            "Added: {}",
+                            note.note_added().format(DATETIME_FORMAT)
+                        ));
+                        if note.note_added != note.note_updated {
+                            ui.text_disabled(format!(
+                                "Updated: {}",
+                                note.note_updated().format(DATETIME_FORMAT)
+                            ));
+                        }
+                    }
+                    QueriedNote::Error => {
+                        ui.text_disabled("Failed to fetch note");
+                    }
+                    QueriedNote::NotFound => {
+                        ui.text_disabled("No note");
+                    }
+                    QueriedNote::Pending => {
+                        ui.text_disabled("Loading");
+                    }
+                }
+            } else {
+                ui.text_disabled("Database not available")
+            }
+        }
+    }
+}
+
+/// Renders a right-click context menu for the last item.
+pub fn item_context_menu(contents: impl FnOnce()) {
+    if unsafe {
+        sys::igBeginPopupContextItem(ptr::null(), sys::ImGuiPopupFlags_MouseButtonRight as i32)
+    } {
+        contents();
+        unsafe { sys::igEndPopup() };
     }
 }

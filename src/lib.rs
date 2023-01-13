@@ -61,7 +61,7 @@ fn extras_chat_callback(chat_message_info: &ChatMessageInfo) {
     match internal_chat_callback(chat_message_info) {
         Ok(_) => {}
         Err(err) => {
-            error!("failed to process chat message: {}", err)
+            error!("failed to process chat message: {:#}", err)
         }
     }
 }

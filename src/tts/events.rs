@@ -34,7 +34,7 @@ impl TextToSpeech {
             match tts_instance.speak(text, false) {
                 Ok(_) => {}
                 Err(err) => {
-                    error!("failed to speak tts: {}", err);
+                    error!("failed to speak tts: {:#}", err);
                 }
             }
         }

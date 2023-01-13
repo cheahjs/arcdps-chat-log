@@ -1,3 +1,7 @@
+use std::sync::{Arc, Mutex};
+
+use crate::db::ChatDatabase;
+
 use self::{buffer::LogBuffer, settings::ChatLogSettings};
 use windows::System::VirtualKey;
 
@@ -22,10 +26,10 @@ impl LocalProps {
     }
 }
 
-#[derive(Debug)]
 pub struct LogUi {
     pub settings: ChatLogSettings,
     pub buffer: LogBuffer,
+    pub chat_database: Option<Arc<Mutex<ChatDatabase>>>,
     ui_props: LocalProps,
 }
 
@@ -36,6 +40,7 @@ impl LogUi {
         Self {
             settings: ChatLogSettings::new(),
             buffer: LogBuffer::new(),
+            chat_database: None,
             ui_props: LocalProps::new(),
         }
     }
