@@ -16,6 +16,7 @@ const TIMESTAMP_FORMAT: &str = "%H:%M:%S";
 
 #[derive(Debug)]
 pub struct LogPart {
+    id: i64,
     pub text: String,
     pub hover: Option<String>,
     pub color: Option<[f32; 4]>,
@@ -30,6 +31,7 @@ impl LogPart {
         clipboard: Option<&str>,
     ) -> Self {
         Self {
+            id: chrono::Utc::now().timestamp_nanos(),
             text: text.to_owned(),
             hover: hover.map(str::to_string),
             color,
@@ -117,7 +119,7 @@ impl LogPart {
 
     fn render_context_menu(&self, ui: &Ui, order: usize) {
         if let Some(text) = self.clipboard.as_ref() {
-            item_context_menu(format!("##squadlogcontext{}", order), || {
+            item_context_menu(format!("##squadlogcontext{}{}", order, self.id), || {
                 if ui.button("Copy") {
                     ui.set_clipboard_text(text);
                     ui.close_current_popup();
