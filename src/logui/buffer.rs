@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use arc_util::ui::Ui;
+use arc_util::ui::{render::item_context_menu, Ui};
 use arcdps::{
     extras::message::{ChannelType, ChatMessageInfo},
     imgui::{
@@ -19,24 +19,32 @@ pub struct LogPart {
     pub text: String,
     pub hover: Option<String>,
     pub color: Option<[f32; 4]>,
+    pub clipboard: Option<String>,
 }
 
 impl LogPart {
-    pub fn new(text: &str, hover: Option<&str>, color: Option<[f32; 4]>) -> Self {
+    pub fn new(
+        text: &str,
+        hover: Option<&str>,
+        color: Option<[f32; 4]>,
+        clipboard: Option<&str>,
+    ) -> Self {
         Self {
             text: text.to_owned(),
             hover: hover.map(str::to_string),
             color,
+            clipboard: clipboard.map(str::to_string),
         }
     }
 
     pub fn new_no_color(text: &str) -> Self {
-        Self::new(text, None, None)
+        Self::new(text, None, None, None)
     }
 
     pub fn new_time<T: chrono::TimeZone>(time: chrono::DateTime<T>) -> Self {
         Self::new(
             &format!("[{}]", time.with_timezone(&Local).format(TIMESTAMP_FORMAT)),
+            None,
             None,
             None,
         )
@@ -75,13 +83,8 @@ impl LogPart {
             ));
         }
 
-        if display_hover {
-            if let Some(hover) = &self.hover {
-                if ui.is_item_hovered() {
-                    ui.tooltip_text(hover);
-                }
-            }
-        }
+        self.render_context_menu(ui, 0);
+        self.render_hover(ui, display_hover);
 
         if end_length < label.len() {
             unsafe {
@@ -91,18 +94,35 @@ impl LogPart {
                     rest_of_str = &rest_of_str[1..];
                 }
                 ui.text_wrapped(rest_of_str);
-                if display_hover {
-                    if let Some(hover) = &self.hover {
-                        if ui.is_item_hovered() {
-                            ui.tooltip_text(hover);
-                        }
-                    }
-                }
+                self.render_context_menu(ui, 1);
+                self.render_hover(ui, display_hover);
             }
         }
 
         if let Some(color_style) = color_style {
             color_style.pop();
+        }
+    }
+
+    fn render_hover(&self, ui: &Ui, display_hover: bool) {
+        if !display_hover {
+            return;
+        }
+        if let Some(hover) = &self.hover {
+            if ui.is_item_hovered() {
+                ui.tooltip_text(hover);
+            }
+        }
+    }
+
+    fn render_context_menu(&self, ui: &Ui, order: usize) {
+        if let Some(text) = self.clipboard.as_ref() {
+            item_context_menu(format!("##squadlogcontext{}", order), || {
+                if ui.button("Copy") {
+                    ui.set_clipboard_text(text);
+                    ui.close_current_popup();
+                }
+            });
         }
     }
 
@@ -278,6 +298,7 @@ impl LogBuffer {
             &format!("[{}]", message.channel_type),
             None,
             None,
+            None,
         ));
         if message.channel_type == ChannelType::Squad {
             if message.subgroup != 255 {
@@ -285,22 +306,25 @@ impl LogBuffer {
                     &format!("[{}]", message.subgroup + 1),
                     None,
                     text_color,
+                    None,
                 ));
             }
             if message.is_broadcast {
                 line.parts
-                    .push(LogPart::new("[BROADCAST]", None, text_color));
+                    .push(LogPart::new("[BROADCAST]", None, text_color, None));
             }
         }
         line.parts.push(LogPart::new(
             &format!(" {}", message.character_name),
             Some(message.account_name),
             user_color,
+            None,
         ));
         line.parts.push(LogPart::new(
             &format!(": {}", message.text),
             None,
             text_color,
+            Some(message.text),
         ));
         line
     }
