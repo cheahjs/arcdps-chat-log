@@ -5,17 +5,24 @@ use std::{
 };
 
 use arc_util::ui::{render, Component, Ui, Windowable};
-use arcdps::imgui::{sys, ChildWindow, Selectable, StyleVar};
+use arcdps::{
+    exports::{self, CoreColor},
+    imgui::{sys, ChildWindow, ColorEdit, Selectable, StyleColor, StyleVar},
+};
 use log::error;
 
 use crate::{
-    db::{insert::NoteToAdd, query::QueriedNote, ChatDatabase},
+    db::{
+        insert::{NoteColorUpdate, NoteToAdd},
+        query::QueriedNote,
+        ChatDatabase,
+    },
     tracking::Tracker,
 };
 
 use super::LogUi;
 
-const DATETIME_FORMAT: &str = "%y-%m-%d %H:%M:%S";
+const DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
 impl Windowable<&Tracker> for LogUi {
     const CONTEXT_MENU: bool = true;
@@ -194,8 +201,17 @@ impl LogUi {
                 .unwrap()
                 .get_or_query_note(account_name)
         });
-        if Selectable::new(label).build(ui) {
-            *text_filter = account_name.to_string();
+        {
+            let _color_token = if let Some(QueriedNote::Success(note)) = &note {
+                note.color.map(|color| {
+                    ui.push_style_color(StyleColor::Text, [color[0], color[1], color[2], 1.0])
+                })
+            } else {
+                None
+            };
+            if Selectable::new(label).build(ui) {
+                *text_filter = account_name.to_string();
+            }
         }
         item_context_menu(|| {
             if let Some(chat_database) = chat_database {
@@ -226,6 +242,29 @@ impl LogUi {
                     }
                 }
                 if let QueriedNote::Success(note) = note {
+                    let colors = exports::colors();
+                    let white = colors
+                        .core(CoreColor::White)
+                        .unwrap_or([1.0, 1.0, 1.0, 1.0]);
+                    let white: [f32; 3] = [white[0], white[1], white[2]];
+                    let mut note_color = note.color.map_or(white, |color| color);
+                    if ColorEdit::new("Highlight color", &mut note_color)
+                        .alpha(false)
+                        .build(ui)
+                    {
+                        let new_note_color = if note_color != white {
+                            Some(note_color)
+                        } else {
+                            None
+                        };
+                        if note_color != white {
+                            if let Err(err) = chat_database.lock().unwrap().update_note_color(
+                                NoteColorUpdate::new(account_name, new_note_color),
+                            ) {
+                                error!("failed to update note color: {:#}", err);
+                            }
+                        }
+                    }
                     ui.text_disabled(format!(
                         "Added: {}",
                         note.note_added().format(DATETIME_FORMAT)

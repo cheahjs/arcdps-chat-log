@@ -4,7 +4,7 @@ use anyhow::Context;
 use arcdps::extras::{ChatMessageInfo, ChatMessageInfoOwned};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::params;
+use rusqlite::{params, types::Null};
 
 use super::{
     query::{Note, QueriedNote},
@@ -15,6 +15,22 @@ pub enum DbInsert {
     ChatMessage(ChatMessageInfoOwned),
     AddNote(NoteToAdd),
     DeleteNote(String),
+    ColorNote(NoteColorUpdate),
+}
+
+#[derive(Clone)]
+pub struct NoteColorUpdate {
+    pub(crate) account_name: String,
+    pub(crate) color: Option<[f32; 3]>,
+}
+
+impl NoteColorUpdate {
+    pub fn new(account_name: &str, color: Option<[f32; 3]>) -> Self {
+        Self {
+            account_name: account_name.to_owned(),
+            color: color.to_owned(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -60,6 +76,7 @@ impl ChatDatabase {
                 note: note.note,
                 note_added: note.cur_time,
                 note_updated: note.cur_time,
+                color: None,
             };
             let existing_note = note_cache.get(&note.account_name);
             match existing_note {
@@ -77,6 +94,28 @@ impl ChatDatabase {
                 None => {
                     note_cache.insert(note.account_name, QueriedNote::Success(new_note));
                 }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn update_note_color(&self, note_color: NoteColorUpdate) -> Result<(), anyhow::Error> {
+        if let Some(insert_channel) = &self.insert_channel {
+            insert_channel
+                .lock()
+                .unwrap()
+                .send(DbInsert::ColorNote(note_color.clone()))
+                .context("failed to insert color note into insert channel")?;
+            // update the cache for immediate read-back
+            let mut note_cache = self.note_cache.lock().unwrap();
+            let existing_note = note_cache.get(&note_color.account_name);
+            if let Some(QueriedNote::Success(inner_note)) = existing_note {
+                let mut inner_note = inner_note.clone();
+                inner_note.color = note_color.color;
+                note_cache.insert(
+                    inner_note.account_name.to_owned(),
+                    QueriedNote::Success(inner_note),
+                );
             }
         }
         Ok(())
@@ -157,6 +196,22 @@ impl ChatDatabase {
                                 note.note
                             ])
                             .context("failed to insert note")?;
+                    }
+                    DbInsert::ColorNote(note) => {
+                        let mut statement = connection
+                            .prepare_cached(
+                                "UPDATE notes SET color1=?1, color2=?2, color3=?3 WHERE account_name=?4",
+                            )
+                            .context("failed to prepare note color update statement")?;
+                        if let Some(color) = note.color {
+                            statement
+                                .execute(params![color[0], color[1], color[2], note.account_name,])
+                                .context("failed to update note color")?;
+                        } else {
+                            statement
+                                .execute(params![&Null, &Null, &Null, note.account_name,])
+                                .context("failed to update note color")?;
+                        }
                     }
                     DbInsert::DeleteNote(account_name) => {
                         let mut statement = connection

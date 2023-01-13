@@ -39,6 +39,9 @@ impl ChatDatabase {
                 "../../migrations/2022-08-07-messages-timestamp-index.sql"
             )),
             M::up(include_str!("../../migrations/2023-01-05-create-notes.sql")),
+            M::up(include_str!(
+                "../../migrations/2023-01-12-add-notes-color.sql"
+            )),
         ]);
 
         let manager = SqliteConnectionManager::file(log_path);
