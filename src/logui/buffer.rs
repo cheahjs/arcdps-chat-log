@@ -320,7 +320,7 @@ impl LogBuffer {
             &format!(" {}", message.character_name),
             Some(message.account_name),
             user_color,
-            None,
+            Some(message.character_name),
         ));
         line.parts.push(LogPart::new(
             &format!(": {}", message.text),
