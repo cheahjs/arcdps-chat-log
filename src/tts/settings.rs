@@ -6,6 +6,8 @@ use super::TextToSpeech;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TextToSpeechSettings {
+    #[serde(default = "u32::default")]
+    pub version: u32,
     pub voice_id: String,
     pub rate: f32,
     pub pitch: f32,
@@ -15,11 +17,22 @@ pub struct TextToSpeechSettings {
     pub play_on_self_message: bool,
     pub play_in_combat: bool,
     pub play_out_of_combat: bool,
+    #[serde(default = "default_as_true")]
+    pub play_squad_messages: bool,
+    #[serde(default = "default_as_true")]
+    pub play_squad_broadcasts: bool,
+    #[serde(default = "default_as_true")]
+    pub play_party_messages: bool,
+}
+
+fn default_as_true() -> bool {
+    true
 }
 
 impl TextToSpeechSettings {
     pub fn new() -> Self {
         Self {
+            version: 2,
             voice_id: String::new(),
             rate: 1.,
             pitch: 1.,
@@ -29,6 +42,9 @@ impl TextToSpeechSettings {
             play_on_self_message: false,
             play_in_combat: true,
             play_out_of_combat: true,
+            play_squad_messages: true,
+            play_squad_broadcasts: true,
+            play_party_messages: true,
         }
     }
 }
@@ -50,5 +66,13 @@ impl HasSettings for TextToSpeech {
 
     fn load_settings(&mut self, loaded: Self::Settings) {
         self.settings = loaded;
+        // Perform settings migration
+        if self.settings.version < 2 {
+            // Version 2 introduced the ability to toggle playing squad or party messages
+            self.settings.play_squad_messages = true;
+            self.settings.play_squad_broadcasts = true;
+            self.settings.play_party_messages = true;
+        }
+        self.settings.version = 2;
     }
 }

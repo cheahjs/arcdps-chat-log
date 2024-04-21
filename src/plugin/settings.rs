@@ -202,6 +202,24 @@ impl Plugin {
                     let _ = self.tts.update_settings();
                 }
                 if ui.checkbox(
+                    "Play incoming squad messages",
+                    &mut self.tts.settings.play_squad_messages,
+                ) {
+                    let _ = self.tts.update_settings();
+                }
+                if ui.checkbox(
+                    "Play incoming squad broadcasts",
+                    &mut self.tts.settings.play_squad_broadcasts,
+                ) {
+                    let _ = self.tts.update_settings();
+                }
+                if ui.checkbox(
+                    "Play incoming party/subgroup messages",
+                    &mut self.tts.settings.play_party_messages,
+                ) {
+                    let _ = self.tts.update_settings();
+                }
+                if ui.checkbox(
                     "Play on self messages",
                     &mut self.tts.settings.play_on_self_message,
                 ) {
