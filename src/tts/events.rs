@@ -1,4 +1,5 @@
 use crate::MUMBLE_LINK;
+use arcdps::extras::ChannelType;
 
 use super::TextToSpeech;
 use arcdps::extras::message::ChatMessageInfo;
@@ -11,6 +12,24 @@ impl TextToSpeech {
             return;
         }
         if !self.settings.play_on_all_new_messages {
+            return;
+        }
+        if !self.settings.play_party_messages {
+            if message.channel_type == ChannelType::Party {
+                return;
+            }
+            if message.channel_type == ChannelType::Squad && message.subgroup != 255 {
+                return;
+            }
+        }
+        if !self.settings.play_squad_messages
+            && message.channel_type == ChannelType::Squad
+            && message.subgroup == 255
+            && !message.is_broadcast
+        {
+            return;
+        }
+        if message.is_broadcast && !self.settings.play_squad_broadcasts {
             return;
         }
         match MUMBLE_LINK.lock().unwrap().tick() {
