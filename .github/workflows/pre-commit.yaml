@@ -107,7 +107,7 @@ jobs:
         uses: azure/trusted-signing-action@v0.5.0
         with:
           endpoint: https://weu.codesigning.azure.net/
-          trusted-signing-account-name: jsc-codesigning
+          trusted-signing-account-name: jsc-trustedsigning
           certificate-profile-name: public-trust
           files: ${{ github.workspace }}\arcdps_chat_log.dll
           file-digest: SHA256
@@ -179,7 +179,7 @@ jobs:
         uses: azure/trusted-signing-action@v0.5.0
         with:
           endpoint: https://weu.codesigning.azure.net/
-          trusted-signing-account-name: jsc-codesigning
+          trusted-signing-account-name: jsc-trustedsigning
           certificate-profile-name: public-trust
           files: ${{ github.workspace }}\arcdps_chat_log.dll
           file-digest: SHA256
