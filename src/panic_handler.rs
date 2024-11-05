@@ -12,7 +12,7 @@ pub fn install_panic_handler() {
     debug!("Installed panic handler")
 }
 
-fn panic_handler(panic_info: &std::panic::PanicInfo) {
+fn panic_handler(panic_info: &std::panic::PanicHookInfo) {
     unsafe {
         let result = dbghelp::SymCleanup(GetCurrentProcess());
         debug!("SymCleanup returned {}", result);
