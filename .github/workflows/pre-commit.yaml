@@ -109,7 +109,7 @@ jobs:
           endpoint: https://weu.codesigning.azure.net/
           trusted-signing-account-name: jsc-codesigning
           certificate-profile-name: public-trust
-          files: ${{ github.workspace }}\target\debug\arcdps_chat_log.dll
+          files: ${{ github.workspace }}\arcdps_chat_log.dll
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
@@ -118,7 +118,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: arcdps-chat-log-debug-signed
-          path: target/debug/arcdps_chat_log.dll
+          path: arcdps_chat_log.dll
 
   build-release:
     name: Build Release
@@ -171,7 +171,7 @@ jobs:
           endpoint: https://weu.codesigning.azure.net/
           trusted-signing-account-name: jsc-codesigning
           certificate-profile-name: public-trust
-          files: ${{ github.workspace }}\target\release\arcdps_chat_log.dll
+          files: ${{ github.workspace }}\arcdps_chat_log.dll
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
@@ -180,10 +180,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: arcdps-chat-log-release-signed
-          path: target/release/arcdps_chat_log.dll
+          path: arcdps_chat_log.dll
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          files: target/release/arcdps_chat_log.dll
+          files: arcdps_chat_log.dll
