@@ -109,7 +109,7 @@ jobs:
           endpoint: https://weu.codesigning.azure.net/
           trusted-signing-account-name: jsc-codesigning
           certificate-profile-name: public-trust
-          files: target/debug/arcdps_chat_log.dll
+          files: ${{ github.workspace }}\target\debug\arcdps_chat_log.dll
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
@@ -171,7 +171,7 @@ jobs:
           endpoint: https://weu.codesigning.azure.net/
           trusted-signing-account-name: jsc-codesigning
           certificate-profile-name: public-trust
-          files: target/release/arcdps_chat_log.dll
+          files: ${{ github.workspace }}\target\release\arcdps_chat_log.dll
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
