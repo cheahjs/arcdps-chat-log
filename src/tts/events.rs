@@ -62,7 +62,7 @@ impl TextToSpeech {
     fn sanitize_message(message: &str) -> String {
         // Clean up chat codes until we have an implementation to strip it
         let re = Regex::new(r"\[&[A-Za-z0-9+/=]+\]").unwrap();
-        return re.replace_all(message, "chatcode").to_string();
+        re.replace_all(message, "chatcode").to_string()
     }
 }
 
