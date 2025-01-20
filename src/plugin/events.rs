@@ -36,7 +36,7 @@ impl Plugin {
     }
 
     pub fn extras_init(&mut self, addon_info: &ExtrasAddonInfo, account_name: Option<&str>) {
-        if addon_info.is_compatible() && addon_info.supports_chat_message_callback() {
+        if addon_info.api_version == 2 && addon_info.supports_chat_message_callback() {
             self.ui_state.extras_state = ExtrasState::Loaded;
         } else {
             self.ui_state.extras_state = ExtrasState::Incompatible;
