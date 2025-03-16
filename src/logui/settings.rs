@@ -2,31 +2,32 @@ use std::path::PathBuf;
 
 use arc_util::settings::HasSettings;
 use serde::{Deserialize, Serialize};
+use arcdps::imgui::ImColor32;
 
 use super::LogUi;
 
 const DEFAULT_LOG_PATH: &str = "arcdps_chat_log.db";
+const DEFAULT_HOTKEY: u32 = 0x4A; // VK_J
 
-#[derive(Debug, Clone, Serialize, Deserialize, Copy)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct FilterSettings {
+    pub hover_char_name_for_account_name: bool,
     pub squad_message: bool,
     pub party_message: bool,
     pub squad_updates: bool,
     pub combat_updates: bool,
     pub others: bool,
-    pub hover_char_name_for_account_name: bool,
 }
 
 impl FilterSettings {
     pub fn new() -> Self {
         Self {
+            hover_char_name_for_account_name: true,
             squad_message: true,
             party_message: true,
             squad_updates: true,
             combat_updates: true,
             others: true,
-            hover_char_name_for_account_name: true,
         }
     }
 }
@@ -37,23 +38,23 @@ impl Default for FilterSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Copy)]
-#[serde(default)]
+#[derive(Debug, Clone, Copy)]
 pub struct ColorSettings {
-    pub squad_chat: [f32; 4],
-    pub squad_user: [f32; 4],
-    pub party_chat: [f32; 4],
-    pub party_user: [f32; 4],
+    pub squad_message: ImColor32,
+    pub party_message: ImColor32,
+    pub squad_updates: ImColor32,
+    pub combat_updates: ImColor32,
+    pub others: ImColor32,
 }
 
 impl ColorSettings {
     pub fn new() -> Self {
-        #[allow(clippy::eq_op)]
         Self {
-            squad_chat: [205.0 / 255.0, 255.0 / 255.0, 239.0 / 255.0, 1.0],
-            party_chat: [188.0 / 255.0, 222.0 / 255.0, 255.0 / 255.0, 1.0],
-            squad_user: [192.0 / 255.0, 241.0 / 255.0, 97.0 / 255.0, 1.0],
-            party_user: [68.0 / 255.0, 188.0 / 255.0, 255.0 / 255.0, 1.0],
+            squad_message: ImColor32::from_rgb(255, 255, 255),
+            party_message: ImColor32::from_rgb(0, 255, 0),
+            squad_updates: ImColor32::from_rgb(255, 255, 0),
+            combat_updates: ImColor32::from_rgb(255, 0, 0),
+            others: ImColor32::from_rgb(128, 128, 128),
         }
     }
 }
@@ -64,30 +65,25 @@ impl Default for ColorSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct ChatLogSettings {
-    pub log_enabled: bool,
-    pub log_path: String,
-    pub log_buffer: i32,
-    pub color_settings: ColorSettings,
-    pub filter_settings: FilterSettings,
-    pub hotkey: Option<u32>,
     pub show_filters: bool,
     pub show_seen_users: bool,
+    pub filter_text: String,
+    pub filter_settings: FilterSettings,
+    pub color_settings: ColorSettings,
+    pub hotkey: Option<u32>,
 }
 
 impl ChatLogSettings {
     pub fn new() -> Self {
         Self {
-            log_enabled: true,
-            log_path: Self::default_log_path().to_str().unwrap().to_string(),
-            log_buffer: 10000,
-            color_settings: ColorSettings::new(),
-            filter_settings: FilterSettings::new(),
-            hotkey: Some(LogUi::DEFAULT_HOTKEY),
-            show_filters: true,
-            show_seen_users: true,
+            show_filters: false,
+            show_seen_users: false,
+            filter_text: String::new(),
+            filter_settings: FilterSettings::default(),
+            color_settings: ColorSettings::default(),
+            hotkey: Some(DEFAULT_HOTKEY),
         }
     }
 

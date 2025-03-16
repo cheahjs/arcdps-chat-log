@@ -318,6 +318,44 @@ impl LogUi {
             }
         }
     }
+
+    fn render_menu(&mut self, ui: &Ui, _props: &mut &tracking::Tracker) {
+        ui.checkbox(
+            "Hover character names for account names",
+            &mut self
+                .settings
+                .filter_settings
+                .hover_char_name_for_account_name,
+        );
+        ui.checkbox("Show text filter", &mut self.settings.show_filters);
+        ui.checkbox("Show seen users", &mut self.settings.show_seen_users);
+        ui.separator();
+        ui.checkbox("Squad", &mut self.settings.filter_settings.squad_message);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("/squad messages");
+        }
+        ui.same_line();
+        ui.checkbox("Party", &mut self.settings.filter_settings.party_message);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("/party messages");
+        }
+        ui.same_line();
+        ui.checkbox("Updates", &mut self.settings.filter_settings.squad_updates);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("Joins, leaves, subgroup/role changes, instance changes, ready checks");
+        }
+        ui.same_line();
+        ui.checkbox("Combat", &mut self.settings.filter_settings.combat_updates);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("Entering and exiting combat");
+        }
+        ui.same_line();
+        ui.checkbox("Others", &mut self.settings.filter_settings.others);
+        if ui.is_item_hovered() {
+            ui.tooltip_text("Messages that don't fit in any other category");
+        }
+        ui.separator();
+    }
 }
 
 /// Renders a right-click context menu for the last item.

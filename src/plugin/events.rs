@@ -1,244 +1,85 @@
-use arc_util::tracking::Player;
+use std::sync::Arc;
+
 use arcdps::{
-    extras::{message::ChatMessageInfo, ExtrasAddonInfo, UserInfoIter, UserRole},
-    Agent, CombatEvent, StateChange,
+    extras::{
+        ExtrasAddonInfo,
+        message::SquadMessage,
+        user::{UserInfo, UserInfoIter, UserRole},
+    },
+    Event as CombatEvent,
+    Agent, StateChange,
 };
-use log::error;
 
 use crate::logui::buffer::LogPart;
+use crate::plugin::Plugin;
 
-use super::{state::ExtrasState, Plugin};
-
-impl Plugin {
-    pub fn process_message(
-        &mut self,
-        chat_message_info: &ChatMessageInfo,
-    ) -> Result<(), anyhow::Error> {
-        self.tracker.add_player_from_message(chat_message_info);
-        if let Err(err) = self
-            .notifications
-            .process_message(chat_message_info, &self.self_account_name)
-        {
-            error!("failed to process message for notifications: {:#}", err);
-        }
-        self.tts
-            .process_message(chat_message_info, &self.self_account_name);
-        self.log_ui.buffer.process_message(chat_message_info);
-        if self.log_ui.settings.log_enabled {
-            if let Some(chat_database) = self.chat_database.as_mut() {
-                chat_database
-                    .lock()
-                    .unwrap()
-                    .process_message(chat_message_info)?;
-            }
-        }
-        Ok(())
+pub fn extras_init(addon_info: &ExtrasAddonInfo) -> bool {
+    if addon_info.version() >= 0x02 {
+        true
+    } else {
+        log::error!("Extras version too old");
+        false
     }
+}
 
-    pub fn extras_init(&mut self, addon_info: &ExtrasAddonInfo, account_name: Option<&str>) {
-        if addon_info.is_compatible() && addon_info.supports_chat_message_callback() {
-            self.ui_state.extras_state = ExtrasState::Loaded;
-        } else {
-            self.ui_state.extras_state = ExtrasState::Incompatible;
+pub fn extras_chat_callback(msg: &SquadMessage) {
+    if let Some(plugin) = Plugin::get() {
+        if let Some(tracking) = &plugin.tracking {
+            tracking.process_message(msg);
         }
-        if let Some(account_name) = account_name {
-            self.self_account_name = account_name.to_string();
+        if let Some(notifications) = &plugin.notifications {
+            notifications.process_message(msg);
         }
     }
+}
 
-    pub fn combat(
-        &mut self,
-        event: Option<CombatEvent>,
-        src: Option<Agent>,
-        dst: Option<Agent>,
-        _skill_name: Option<&'static str>,
-        _id: u64,
-        _revision: u64,
-    ) {
-        if let Some(src) = src {
-            match event {
-                Some(event) => match event.is_statechange {
-                    StateChange::EnterCombat => {
-                        if let Some(player) = self.tracker.get_arc_player(src.id) {
-                            let mut parts: Vec<LogPart> = Vec::new();
-                            if player.account == self.self_account_name {
-                                parts.push(LogPart::new_no_color("You have entered combat as "));
-                                parts.push(LogPart::new(
-                                    &player.character,
-                                    Some(&player.account),
-                                    None,
-                                    None,
-                                ));
-                            } else {
-                                parts.push(LogPart::new(
-                                    &player.character,
-                                    Some(&player.account),
-                                    None,
-                                    None,
-                                ));
-                                parts.push(LogPart::new_no_color(" has entered combat"));
-                            }
-                            self.log_ui.buffer.insert_combat_update_parts(&mut parts);
-                        }
-                    }
-                    StateChange::ExitCombat => {
-                        if let Some(player) = self.tracker.get_arc_player(src.id) {
-                            let mut parts: Vec<LogPart> = Vec::new();
-                            if player.account == self.self_account_name {
-                                parts.push(LogPart::new_no_color("You have left combat as "));
-                                parts.push(LogPart::new(
-                                    &player.character,
-                                    Some(&player.account),
-                                    None,
-                                    None,
-                                ));
-                            } else {
-                                parts.push(LogPart::new(
-                                    &player.character,
-                                    Some(&player.account),
-                                    None,
-                                    None,
-                                ));
-                                parts.push(LogPart::new_no_color(" has left combat"));
-                            }
-                            self.log_ui.buffer.insert_combat_update_parts(&mut parts);
-                        }
-                    }
-                    _ => {}
-                },
-                None => {
-                    // tracking change
-                    if src.elite == 0 {
-                        if src.prof != 0 {
-                            // agent added
-                            if let Some(player) =
-                                dst.and_then(|dst| Player::from_tracking_change(src, dst))
-                            {
-                                self.tracker.add_arc_player(&player);
-                                let mut parts: Vec<LogPart> = Vec::new();
-                                if player.account == self.self_account_name {
-                                    parts.push(LogPart::new_no_color(
-                                        "You have joined an instance as ",
-                                    ));
-                                    parts.push(LogPart::new(
-                                        &player.character,
-                                        Some(&player.account),
-                                        None,
-                                        None,
-                                    ));
-                                } else {
-                                    parts.push(LogPart::new(
-                                        &player.character,
-                                        Some(&player.account),
-                                        None,
-                                        None,
-                                    ));
-                                    parts.push(LogPart::new_no_color(" has joined your instance"));
-                                }
-                                self.log_ui.buffer.insert_squad_update_parts(&mut parts);
-                            }
-                        } else {
-                            // agent removed
-                            let player = self.tracker.remove_arc_player(src.id);
-                            if let Some(player) = player {
-                                let mut parts: Vec<LogPart> = Vec::new();
-                                if player.account == self.self_account_name {
-                                    parts.push(LogPart::new_no_color(
-                                        "You have left an instance as ",
-                                    ));
-                                    parts.push(LogPart::new(
-                                        &player.character,
-                                        Some(&player.account),
-                                        None,
-                                        None,
-                                    ));
-                                } else {
-                                    parts.push(LogPart::new(
-                                        &player.character,
-                                        Some(&player.account),
-                                        None,
-                                        None,
-                                    ));
-                                    parts.push(LogPart::new_no_color(" has left your instance"));
-                                }
-                                self.log_ui.buffer.insert_squad_update_parts(&mut parts);
-                            }
+pub fn combat(ev: Option<&CombatEvent>, src: Option<&Agent>, dst: Option<&Agent>, skill_name: Option<&str>, id: u64, revision: u64) {
+    if let Some(plugin) = Plugin::get() {
+        if let Some(tracking) = &plugin.tracking {
+            if let Some(ev) = ev {
+                if ev.is_statechange == StateChange::EnterCombat as i32 {
+                    if let Some(src) = src {
+                        if src.is_self == 1 {
+                            tracking.log_ui.buffer.push(LogPart::EnterCombat);
                         }
                     }
                 }
             }
         }
     }
+}
 
-    pub fn squad_update(&mut self, users: UserInfoIter) {
-        for user_update in users {
-            let account_name = match user_update.account_name {
-                Some(x) => arcdps::strip_account_prefix(x),
-                None => continue,
-            };
-            match user_update.role {
-                UserRole::SquadLeader | UserRole::Lieutenant | UserRole::Member => {
-                    let old_info = self.tracker.add_extras_player(&user_update.clone().into());
-                    match old_info {
-                        Some(old_info) => {
-                            if user_update.ready_status && !old_info.ready_status {
-                                self.log_ui
-                                    .buffer
-                                    .insert_squad_update(format!("{} readied up", account_name));
-                            }
-                            if !user_update.ready_status && old_info.ready_status {
-                                self.log_ui
-                                    .buffer
-                                    .insert_squad_update(format!("{} unreadied", account_name));
-                            }
-                            if user_update.role != old_info.role {
-                                self.log_ui.buffer.insert_squad_update(format!(
-                                    "{} changed roles from {} to {}",
-                                    account_name, old_info.role, user_update.role
-                                ));
-                            }
-                            if user_update.subgroup != old_info.subgroup {
-                                self.log_ui.buffer.insert_squad_update(format!(
-                                    "{} moved from subgroup {} to {}",
-                                    account_name,
-                                    old_info.subgroup + 1,
-                                    user_update.subgroup + 1
-                                ));
-                            }
-                        }
-                        None => {
-                            self.log_ui.buffer.insert_squad_update(format!(
-                                "{} joined the squad as {}",
-                                account_name, user_update.role
-                            ));
-                        }
-                    };
+pub fn squad_update(user_update: &UserInfo, self_update: bool) {
+    if let Some(plugin) = Plugin::get() {
+        if let Some(tracking) = &plugin.tracking {
+            let mut log_parts = Vec::new();
+
+            if self_update {
+                if let Some(role) = user_update.role() {
+                    log_parts.push(LogPart::RoleChange {
+                        account_name: user_update.account_name().to_string(),
+                        role,
+                    });
                 }
-                UserRole::None => {
-                    if account_name == self.self_account_name {
-                        self.log_ui
-                            .buffer
-                            .insert_squad_update(format!("{} (self) left the squad", account_name));
-                        self.tracker.clear();
-                    } else {
-                        let _result = self.tracker.remove_extras_player(&user_update.into());
-                        self.log_ui
-                            .buffer
-                            .insert_squad_update(format!("{} left the squad", account_name));
-                    }
+
+                if let Some(ready) = user_update.ready() {
+                    log_parts.push(LogPart::ReadyStatus {
+                        account_name: user_update.account_name().to_string(),
+                        ready,
+                    });
                 }
-                UserRole::Invited => {
-                    self.log_ui
-                        .buffer
-                        .insert_squad_update(format!("{} invited to squad", account_name));
+
+                if let Some(subgroup) = user_update.subgroup() {
+                    log_parts.push(LogPart::SubgroupMove {
+                        account_name: user_update.account_name().to_string(),
+                        subgroup,
+                    });
                 }
-                UserRole::Applied => {
-                    self.log_ui
-                        .buffer
-                        .insert_squad_update(format!("{} applied to join squad", account_name));
-                }
-                UserRole::Invalid => {}
-            };
+            }
+
+            for part in log_parts {
+                tracking.log_ui.buffer.push(part);
+            }
         }
     }
 }

@@ -1,51 +1,56 @@
 use crate::MUMBLE_LINK;
 use arcdps::extras::ChannelType;
+use arcdps::extras::message::{SquadMessage};
 
 use super::TextToSpeech;
-use arcdps::extras::message::ChatMessageInfo;
+use arcdps::extras::message::Message;
 use log::error;
 use regex::Regex;
 
 impl TextToSpeech {
-    pub fn process_message(&mut self, message: &ChatMessageInfo, self_account_name: &str) {
-        if !self.settings.play_on_self_message && message.account_name == self_account_name {
-            return;
+    pub fn process_message(&self, message: &SquadMessage, self_account_name: &str) -> bool {
+        if !self.settings.play_on_self_message && message.account_name() == self_account_name {
+            return false;
         }
-        if !self.settings.play_on_all_new_messages {
-            return;
-        }
+
         if !self.settings.play_party_messages {
-            if message.channel_type == ChannelType::Party {
-                return;
-            }
-            if message.channel_type == ChannelType::Squad && message.subgroup != 255 {
-                return;
+            if message.channel() == ChannelType::Party {
+                return false;
             }
         }
+
+        if !self.settings.play_subgroup_messages {
+            if message.channel() == ChannelType::Squad && message.subgroup() != 255 {
+                return false;
+            }
+        }
+
         if !self.settings.play_squad_messages
-            && message.channel_type == ChannelType::Squad
-            && message.subgroup == 255
-            && !message.is_broadcast
+            && message.channel() == ChannelType::Squad
+            && message.subgroup() == 255
+            && !message.is_broadcast()
         {
-            return;
+            return false;
         }
-        if message.is_broadcast && !self.settings.play_squad_broadcasts {
-            return;
+
+        if message.is_broadcast() && !self.settings.play_squad_broadcasts {
+            return false;
         }
-        match MUMBLE_LINK.lock().unwrap().tick() {
-            Some(linked_mem) => {
-                if linked_mem.context.is_in_combat() && !self.settings.play_in_combat {
-                    return;
-                }
-                if !linked_mem.context.is_in_combat() && !self.settings.play_out_of_combat {
-                    return;
-                }
+
+        if !self.settings.play_whispers {
+            if message.channel() == ChannelType::Whisper {
+                return false;
             }
-            None => {
-                return;
+        }
+
+        if !self.settings.play_say {
+            if message.channel() == ChannelType::Say {
+                return false;
             }
-        };
-        self.play(&Self::sanitize_message(message.text));
+        }
+
+        self.play(&Self::sanitize_message(message.text()));
+        true
     }
 
     pub fn play(&mut self, text: &str) {

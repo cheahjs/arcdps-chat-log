@@ -40,6 +40,3 @@ winres = "0.1"
 [profile.release-with-debug]
 inherits = "release"
 debug = true
-
-[patch.'https://github.com/zerthox/arcdps-bindings']
-arcdps = { git = "https://github.com/cheahjs/Zerthox-arcdps-bindings", branch = "extras-compat" }

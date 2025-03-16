@@ -21,15 +21,15 @@ use self::{
     query::{DbQuery, QueriedNote},
 };
 
-pub struct ChatDatabase {
+pub struct ChatDatabase<'a> {
     pub log_path: String,
     pub connection_pool: Option<Pool<SqliteConnectionManager>>,
-    pub insert_channel: Option<Mutex<Sender<DbInsert>>>,
+    pub insert_channel: Option<Mutex<Sender<DbInsert<'a>>>>,
     pub query_channel: Option<Mutex<Sender<DbQuery>>>,
     pub note_cache: Arc<Mutex<HashMap<String, QueriedNote>>>,
 }
 
-impl ChatDatabase {
+impl<'a> ChatDatabase<'a> {
     pub fn try_new(log_path: &str, game_start: i64) -> anyhow::Result<Self> {
         let migrations = Migrations::new(vec![
             M::up(include_str!(

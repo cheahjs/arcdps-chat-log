@@ -1,7 +1,8 @@
 use std::sync::mpsc;
+use std::error::Error;
 
 use anyhow::Context;
-use arcdps::extras::{ChatMessageInfo, ChatMessageInfoOwned};
+use arcdps::extras::message::{ChannelType, SquadMessage as ChatMessageInfo, SquadMessageOwned as ChatMessageInfoOwned};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, types::Null};
@@ -11,8 +12,8 @@ use super::{
     ChatDatabase,
 };
 
-pub enum DbInsert {
-    ChatMessage(ChatMessageInfoOwned),
+pub enum DbInsert<'a> {
+    ChatMessage(&'a ChatMessageInfo<'a>),
     AddNote(NoteToAdd),
     DeleteNote(String),
     ColorNote(NoteColorUpdate),
@@ -165,14 +166,14 @@ impl ChatDatabase {
                             .context("failed to prepare message insert statement")?;
                         statement
                             .execute(params![
-                                message.channel_id,
-                                message.channel_type.to_string(),
-                                message.subgroup,
-                                message.is_broadcast,
-                                message.timestamp,
-                                message.account_name,
-                                message.character_name,
-                                message.text,
+                                message.channel_id(),
+                                message.channel().to_string(),
+                                message.subgroup(),
+                                message.is_broadcast(),
+                                message.timestamp(),
+                                message.account_name(),
+                                message.character_name(),
+                                message.text(),
                                 game_start
                             ])
                             .context("failed to insert message")?;
@@ -226,5 +227,39 @@ impl ChatDatabase {
                 return Err(anyhow::Error::new(err).context("failed to receive insert event"));
             }
         }
+    }
+}
+
+impl<'a> DbInsert<'a> {
+    pub fn process(&self, db: &ChatDatabase) -> Result<(), Box<dyn Error>> {
+        match self {
+            DbInsert::ChatMessage(message) => {
+                let mut stmt = db.conn.prepare(
+                    "INSERT INTO messages (
+                        channel_id,
+                        channel_type,
+                        subgroup,
+                        is_broadcast,
+                        timestamp,
+                        account_name,
+                        character_name,
+                        text
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                )?;
+
+                stmt.execute(params![
+                    message.channel_id(),
+                    message.channel().to_string(),
+                    message.subgroup(),
+                    message.is_broadcast(),
+                    message.timestamp(),
+                    message.account_name(),
+                    message.character_name(),
+                    message.text(),
+                ])?;
+            }
+        }
+
+        Ok(())
     }
 }

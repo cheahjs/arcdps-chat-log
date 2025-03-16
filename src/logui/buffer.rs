@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use arc_util::ui::{render::item_context_menu, Ui};
 use arcdps::{
-    extras::message::{ChannelType, ChatMessageInfo},
+    extras::message::{ChannelType, Message},
     imgui::{
         sys::{self, cty::c_char},
         StyleColor,
@@ -145,26 +145,26 @@ impl LogPart {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LogType {
-    Generic,
-    SquadMessage,
     PartyMessage,
+    SquadMessage,
     SquadUpdate,
     Combat,
+    Generic,
 }
 
 #[derive(Debug)]
 pub struct LogLine {
-    pub parts: Vec<LogPart>,
     pub log_type: LogType,
+    pub parts: Vec<LogPart>,
 }
 
 impl LogLine {
     pub fn new() -> Self {
         Self {
-            parts: Vec::new(),
             log_type: LogType::Generic,
+            parts: Vec::new(),
         }
     }
 
@@ -211,6 +211,12 @@ impl LogLine {
     }
 }
 
+impl Default for LogLine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
 pub struct LogBuffer {
     pub buffer: VecDeque<LogLine>,
@@ -227,7 +233,7 @@ impl LogBuffer {
         }
     }
 
-    pub fn process_message(&mut self, message: &ChatMessageInfo) {
+    pub fn process_message(&mut self, message: &Message) {
         self.insert_message(self.chat_message_to_line(message))
     }
 
@@ -266,17 +272,17 @@ impl LogBuffer {
         }
     }
 
-    fn chat_message_to_line(&self, message: &ChatMessageInfo) -> LogLine {
+    fn chat_message_to_line(&self, message: &Message) -> LogLine {
         let mut line = LogLine::new();
-        line.log_type = match message.channel_type {
+        line.log_type = match message.channel() {
             ChannelType::Party => LogType::PartyMessage,
             ChannelType::Squad => LogType::SquadMessage,
             ChannelType::Reserved => LogType::Generic,
             ChannelType::Invalid => LogType::Generic,
         };
-        let text_color = match message.channel_type {
+        let text_color = match message.channel() {
             ChannelType::Party => Some(self.colors.party_chat),
-            ChannelType::Squad => Some(if message.subgroup == 255 {
+            ChannelType::Squad => Some(if message.subgroup() == 255 {
                 self.colors.squad_chat
             } else {
                 self.colors.party_chat
@@ -284,9 +290,9 @@ impl LogBuffer {
             ChannelType::Reserved => None,
             ChannelType::Invalid => None,
         };
-        let user_color = match message.channel_type {
+        let user_color = match message.channel() {
             ChannelType::Party => Some(self.colors.party_user),
-            ChannelType::Squad => Some(if message.subgroup == 255 {
+            ChannelType::Squad => Some(if message.subgroup() == 255 {
                 self.colors.squad_user
             } else {
                 self.colors.party_user
@@ -295,39 +301,41 @@ impl LogBuffer {
             ChannelType::Invalid => None,
         };
 
-        line.parts.push(LogPart::new_time(message.timestamp));
+        line.parts.push(LogPart::new_time(message.timestamp()));
         line.parts.push(LogPart::new(
-            &format!("[{}]", message.channel_type),
+            &format!("[{}]", message.channel()),
             None,
             None,
             None,
         ));
-        if message.channel_type == ChannelType::Squad {
-            if message.subgroup != 255 {
+        if message.channel() == ChannelType::Squad {
+            if message.subgroup() != 255 {
                 line.parts.push(LogPart::new(
-                    &format!("[{}]", message.subgroup + 1),
+                    &format!("[{}]", message.subgroup() + 1),
                     None,
                     text_color,
                     None,
                 ));
             }
-            if message.is_broadcast {
+            if message.is_broadcast() {
                 line.parts
                     .push(LogPart::new("[BROADCAST]", None, text_color, None));
             }
         }
         line.parts.push(LogPart::new(
-            &format!(" {}", message.character_name),
-            Some(message.account_name),
+            &format!(" {}: ", message.character_name()),
+            Some(message.account_name()),
             user_color,
-            Some(message.character_name),
+            Some(message.account_name()),
         ));
-        line.parts.push(LogPart::new(
-            &format!(": {}", message.text),
-            None,
-            text_color,
-            Some(message.text),
-        ));
+        line.parts
+            .push(LogPart::new(message.text(), None, text_color, None));
         line
+    }
+}
+
+impl Default for LogBuffer {
+    fn default() -> Self {
+        Self::new()
     }
 }

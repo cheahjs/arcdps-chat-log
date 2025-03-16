@@ -1,16 +1,36 @@
-use arcdps::extras::message::ChatMessageInfo;
+use arcdps::extras::message::Message;
+use arcdps::extras::message::SquadMessage;
 
 use crate::MUMBLE_LINK;
 
 use super::Notifications;
+use crate::notifications::NotificationsSettings;
+
+pub struct NotificationEvents {
+    pub settings: NotificationSettings,
+}
+
+impl NotificationEvents {
+    pub fn new(settings: NotificationSettings) -> Self {
+        Self { settings }
+    }
+
+    pub fn process_message(&self, message: &SquadMessage, self_account_name: &str) -> bool {
+        if !self.settings.ping_on_self_message && message.account_name() == self_account_name {
+            return false;
+        }
+
+        true
+    }
+}
 
 impl Notifications {
     pub fn process_message(
         &mut self,
-        message: &ChatMessageInfo,
+        message: &Message,
         self_account_name: &str,
     ) -> Result<(), anyhow::Error> {
-        if !self.settings.ping_on_self_message && message.account_name == self_account_name {
+        if !self.settings.ping_on_self_message && message.account_name() == self_account_name {
             return Ok(());
         }
         if !self.settings.ping_on_all_new_messages {
