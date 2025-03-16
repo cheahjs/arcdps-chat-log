@@ -8,7 +8,7 @@ mod plugin;
 mod tracking;
 mod tts;
 
-use arcdps::extras::{ExtrasAddonInfo, Message, UserInfoIter};
+use arcdps::extras::{ExtrasAddonInfo, Message, SquadMessage, UserInfoIter};
 use arcdps::imgui::Ui;
 use arcdps::{Agent, Event};
 use audio::player::AudioPlayer;
@@ -35,7 +35,8 @@ arcdps::export! {
     imgui,
     combat,
     extras_init,
-    extras_chat_message: extras_chat_callback,
+    extras_chat_message,
+    extras_squad_chat_message,
     extras_squad_update,
     wnd_filter,
 }
@@ -48,15 +49,26 @@ fn imgui(ui: &Ui, not_loading_or_character_selection: bool) {
 }
 
 fn extras_init(addon_info: ExtrasAddonInfo, account_name: Option<&str>) {
+    debug!("extras init: {:?}", addon_info);
     PLUGIN
         .lock()
         .unwrap()
         .extras_init(&addon_info, account_name);
 }
 
-fn extras_chat_callback(message: Message) {
+fn extras_chat_message(message: Message) {
     debug!("chat callback: {:?}", message);
-    match internal_chat_callback(&message) {
+    // match internal_chat_callback(&message) {
+    //     Ok(_) => {}
+    //     Err(err) => {
+    //         error!("failed to process chat message: {:#}", err)
+    //     }
+    // }
+}
+
+fn extras_squad_chat_message(message: &SquadMessage) {
+    debug!("squad chat message: {:?}", message);
+    match internal_chat_callback(&Message::Squad(message)) {
         Ok(_) => {}
         Err(err) => {
             error!("failed to process chat message: {:#}", err)

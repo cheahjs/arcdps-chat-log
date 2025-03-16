@@ -11,7 +11,7 @@ use arc_util::{
     ui::{Window, WindowOptions},
 };
 
-use log::{error, info};
+use log::{debug, error, info};
 
 use crate::{
     db::ChatDatabase,
@@ -72,6 +72,7 @@ impl Plugin {
 
         self.log_ui.buffer.buffer_max_size = self.log_ui.settings.log_buffer as usize;
 
+        debug!("loading database");
         match ChatDatabase::try_new(&self.log_ui.settings.log_path, self.game_start)
             .context("failed to init database")
         {
@@ -81,7 +82,9 @@ impl Plugin {
             }
             Err(err) => error!("{:#}", err),
         }
+        debug!("database loaded");
 
+        debug!("loading notifications");
         match self
             .notifications
             .load()
@@ -93,7 +96,9 @@ impl Plugin {
                 error!("{:#}", err)
             }
         }
+        debug!("notifications loaded");
 
+        debug!("loading mumblelink");
         match crate::MUMBLE_LINK.lock().unwrap().load() {
             Ok(mumble_link_name) => {
                 self.ui_state.mumblelink_state = MumbleLinkState::Loaded(mumble_link_name)
@@ -103,7 +108,9 @@ impl Plugin {
                 error!("{:#}", err)
             }
         }
+        debug!("mumblelink loaded");
 
+        debug!("loading tts");
         match self.tts.init().context("failed to load tts module") {
             Ok(_) => self.ui_state.tts_state = TtsState::Loaded,
             Err(err) => {

@@ -3,7 +3,7 @@ use arcdps::{
     extras::{ExtrasAddonInfo, Message, SquadMessageOwned, UserInfoIter, UserInfoOwned, UserRole},
     Agent, Event, StateChange,
 };
-use log::error;
+use log::{debug, error};
 
 use crate::logui::buffer::LogPart;
 
@@ -39,6 +39,10 @@ impl Plugin {
 
     pub fn extras_init(&mut self, addon_info: &ExtrasAddonInfo, account_name: Option<&str>) {
         let version = addon_info.version();
+        debug!("extras version: {:?}", version);
+        debug!("supports chat message2: {:?}", version.supports_chat_message2());
+        debug!("supports squad chat message: {:?}", version.supports_squad_chat_message());
+        debug!("is compatible: {:?}", version.is_compatible());
         if version.is_compatible() && version.supports_chat_message2() {
             self.ui_state.extras_state = ExtrasState::Loaded;
         } else {
