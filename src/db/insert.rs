@@ -1,7 +1,7 @@
 use std::sync::mpsc;
 
 use anyhow::Context;
-use arcdps::extras::{ChatMessageInfo, ChatMessageInfoOwned};
+use arcdps::extras::message::{SquadMessageFlags, SquadMessageOwned};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{params, types::Null};
@@ -12,7 +12,7 @@ use super::{
 };
 
 pub enum DbInsert {
-    ChatMessage(ChatMessageInfoOwned),
+    ChatMessage(SquadMessageOwned),
     AddNote(NoteToAdd),
     DeleteNote(String),
     ColorNote(NoteColorUpdate),
@@ -51,12 +51,12 @@ impl NoteToAdd {
 }
 
 impl ChatDatabase {
-    pub fn process_message(&self, message: &ChatMessageInfo) -> Result<(), anyhow::Error> {
+    pub fn process_message(&self, message: &SquadMessageOwned) -> Result<(), anyhow::Error> {
         if let Some(insert_channel) = &self.insert_channel {
             insert_channel
                 .lock()
                 .unwrap()
-                .send(DbInsert::ChatMessage(message.to_owned().into()))
+                .send(DbInsert::ChatMessage(message.to_owned()))
                 .context("failed to insert message into insert channel")?;
         }
         Ok(())
@@ -168,7 +168,7 @@ impl ChatDatabase {
                                 message.channel_id,
                                 message.channel_type.to_string(),
                                 message.subgroup,
-                                message.is_broadcast,
+                                message.flags.contains(SquadMessageFlags::IS_BROADCAST),
                                 message.timestamp,
                                 message.account_name,
                                 message.character_name,

@@ -2,7 +2,7 @@ use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 use arc_util::tracking::Player;
 use arcdps::{
-    extras::{message::ChatMessageInfo, UserInfoOwned},
+    extras::{message::SquadMessage, UserInfoOwned},
     strip_account_prefix,
 };
 use log::debug;
@@ -139,8 +139,8 @@ impl Tracker {
         }
     }
 
-    pub fn add_player_from_message(&mut self, message: &ChatMessageInfo) {
-        self.insert_name_into_cache(message.account_name, Some(message.character_name));
+    pub fn add_player_from_message(&mut self, message: &SquadMessage) {
+        self.insert_name_into_cache(message.account_name(), Some(message.character_name()))
     }
 
     fn insert_name_into_cache(&mut self, account_name: &str, character_name: Option<&str>) {

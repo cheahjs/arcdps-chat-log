@@ -8,11 +8,9 @@ mod plugin;
 mod tracking;
 mod tts;
 
-use arcdps::callbacks::CombatCallback;
-use arcdps::extras::UserInfoIter;
-use arcdps::extras::{message::ChatMessageInfo, ExtrasAddonInfo};
+use arcdps::extras::{ExtrasAddonInfo, Message, UserInfoIter};
 use arcdps::imgui::Ui;
-use arcdps::{Agent, CombatEvent};
+use arcdps::{Agent, Event};
 use audio::player::AudioPlayer;
 use log::*;
 use mumblelink::MumbleLink;
@@ -20,7 +18,7 @@ use plugin::Plugin;
 
 use std::sync::Mutex;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use once_cell::sync::Lazy;
 
 static PLUGIN: Lazy<Mutex<Plugin>> = Lazy::new(|| Mutex::new(Plugin::new()));
@@ -56,9 +54,9 @@ fn extras_init(addon_info: ExtrasAddonInfo, account_name: Option<&str>) {
         .extras_init(&addon_info, account_name);
 }
 
-fn extras_chat_callback(chat_message_info: &ChatMessageInfo) {
-    debug!("chat callback: {:?}", chat_message_info);
-    match internal_chat_callback(chat_message_info) {
+fn extras_chat_callback(message: Message) {
+    debug!("chat callback: {:?}", message);
+    match internal_chat_callback(&message) {
         Ok(_) => {}
         Err(err) => {
             error!("failed to process chat message: {:#}", err)
@@ -67,9 +65,9 @@ fn extras_chat_callback(chat_message_info: &ChatMessageInfo) {
 }
 
 fn combat(
-    event: Option<CombatEvent>,
-    src: Option<Agent>,
-    dst: Option<Agent>,
+    event: Option<&Event>,
+    src: Option<&Agent>,
+    dst: Option<&Agent>,
     skill_name: Option<&'static str>,
     id: u64,
     revision: u64,
@@ -84,8 +82,8 @@ fn extras_squad_update(users: UserInfoIter) {
     PLUGIN.lock().unwrap().squad_update(users)
 }
 
-fn internal_chat_callback(chat_message_info: &ChatMessageInfo) -> Result<(), anyhow::Error> {
-    PLUGIN.lock().unwrap().process_message(chat_message_info)
+fn internal_chat_callback(message: &Message) -> Result<(), anyhow::Error> {
+    PLUGIN.lock().unwrap().process_message(message)
 }
 
 fn options_end(ui: &Ui) {
@@ -106,17 +104,11 @@ fn wnd_filter(key: usize, key_down: bool, prev_key_down: bool) -> bool {
         .key_event(key, key_down, prev_key_down)
 }
 
-fn init() -> Result<(), Box<dyn std::error::Error>> {
+fn init() -> Result<(), String> {
     debug!("arc init");
     panic_handler::install_panic_handler();
 
-    PLUGIN
-        .lock()
-        .unwrap()
-        .load()
-        .context("failed to load plugin")?;
-
-    Ok(())
+    PLUGIN.lock().unwrap().load().map_err(|e| e.to_string())
 }
 
 fn release() {
