@@ -35,7 +35,7 @@ arcdps::export! {
     imgui,
     combat,
     extras_init,
-    extras_chat_message: extras_chat_callback,
+    extras_chat_message,
     extras_squad_update,
     wnd_filter,
 }
@@ -54,7 +54,7 @@ fn extras_init(addon_info: ExtrasAddonInfo, account_name: Option<&str>) {
         .extras_init(&addon_info, account_name);
 }
 
-fn extras_chat_callback(message: Message) {
+fn extras_chat_message(message: Message) {
     debug!("chat callback: {:?}", message);
     match internal_chat_callback(&message) {
         Ok(_) => {}
