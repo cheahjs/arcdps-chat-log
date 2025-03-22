@@ -1,13 +1,13 @@
 use crate::MUMBLE_LINK;
-use arcdps::extras::ChannelType;
+use arcdps::extras::{message::SquadMessageFlags, ChannelType};
 
 use super::TextToSpeech;
-use arcdps::extras::message::ChatMessageInfo;
+use arcdps::extras::message::SquadMessageOwned;
 use log::error;
 use regex::Regex;
 
 impl TextToSpeech {
-    pub fn process_message(&mut self, message: &ChatMessageInfo, self_account_name: &str) {
+    pub fn process_message(&mut self, message: &SquadMessageOwned, self_account_name: &str) {
         if !self.settings.play_on_self_message && message.account_name == self_account_name {
             return;
         }
@@ -25,11 +25,13 @@ impl TextToSpeech {
         if !self.settings.play_squad_messages
             && message.channel_type == ChannelType::Squad
             && message.subgroup == 255
-            && !message.is_broadcast
+            && !message.flags.contains(SquadMessageFlags::IS_BROADCAST)
         {
             return;
         }
-        if message.is_broadcast && !self.settings.play_squad_broadcasts {
+        if message.flags.contains(SquadMessageFlags::IS_BROADCAST)
+            && !self.settings.play_squad_broadcasts
+        {
             return;
         }
         match MUMBLE_LINK.lock().unwrap().tick() {
@@ -45,7 +47,7 @@ impl TextToSpeech {
                 return;
             }
         };
-        self.play(&Self::sanitize_message(message.text));
+        self.play(&Self::sanitize_message(&message.text));
     }
 
     pub fn play(&mut self, text: &str) {

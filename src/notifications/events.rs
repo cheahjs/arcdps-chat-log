@@ -1,4 +1,4 @@
-use arcdps::extras::message::ChatMessageInfo;
+use arcdps::extras::message::SquadMessage;
 
 use crate::MUMBLE_LINK;
 
@@ -7,10 +7,10 @@ use super::Notifications;
 impl Notifications {
     pub fn process_message(
         &mut self,
-        message: &ChatMessageInfo,
+        message: &SquadMessage,
         self_account_name: &str,
     ) -> Result<(), anyhow::Error> {
-        if !self.settings.ping_on_self_message && message.account_name == self_account_name {
+        if !self.settings.ping_on_self_message && message.account_name() == self_account_name {
             return Ok(());
         }
         if !self.settings.ping_on_all_new_messages {

@@ -43,12 +43,13 @@ impl Plugin {
     pub fn new() -> Self {
         Self {
             log_ui: Window::new(
+                "Squad Log",
+                LogUi::new(),
                 WindowOptions {
                     width: 500.0,
                     height: 300.0,
-                    ..WindowOptions::new("Squad Log")
+                    ..WindowOptions::new()
                 },
-                LogUi::new(),
             ),
             notifications: Notifications::new(),
             ui_state: UiState::new(),

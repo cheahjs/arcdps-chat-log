@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use arc_util::ui::{render::item_context_menu, Ui};
 use arcdps::{
-    extras::message::{ChannelType, ChatMessageInfo},
+    extras::message::{ChannelType, SquadMessageFlags, SquadMessageOwned},
     imgui::{
         sys::{self, cty::c_char},
         StyleColor,
@@ -31,7 +31,7 @@ impl LogPart {
         clipboard: Option<&str>,
     ) -> Self {
         Self {
-            id: chrono::Utc::now().timestamp_nanos(),
+            id: chrono::Utc::now().timestamp_micros(),
             text: text.to_owned(),
             hover: hover.map(str::to_string),
             color,
@@ -227,7 +227,7 @@ impl LogBuffer {
         }
     }
 
-    pub fn process_message(&mut self, message: &ChatMessageInfo) {
+    pub fn process_message(&mut self, message: &SquadMessageOwned) {
         self.insert_message(self.chat_message_to_line(message))
     }
 
@@ -266,7 +266,7 @@ impl LogBuffer {
         }
     }
 
-    fn chat_message_to_line(&self, message: &ChatMessageInfo) -> LogLine {
+    fn chat_message_to_line(&self, message: &SquadMessageOwned) -> LogLine {
         let mut line = LogLine::new();
         line.log_type = match message.channel_type {
             ChannelType::Party => LogType::PartyMessage,
@@ -295,7 +295,8 @@ impl LogBuffer {
             ChannelType::Invalid => None,
         };
 
-        line.parts.push(LogPart::new_time(message.timestamp));
+        line.parts
+            .push(LogPart::new_time(message.timestamp.unwrap_or_default()));
         line.parts.push(LogPart::new(
             &format!("[{}]", message.channel_type),
             None,
@@ -311,22 +312,22 @@ impl LogBuffer {
                     None,
                 ));
             }
-            if message.is_broadcast {
+            if message.flags.contains(SquadMessageFlags::IS_BROADCAST) {
                 line.parts
                     .push(LogPart::new("[BROADCAST]", None, text_color, None));
             }
         }
         line.parts.push(LogPart::new(
             &format!(" {}", message.character_name),
-            Some(message.account_name),
+            Some(&message.account_name),
             user_color,
-            Some(message.character_name),
+            Some(&message.character_name),
         ));
         line.parts.push(LogPart::new(
             &format!(": {}", message.text),
             None,
             text_color,
-            Some(message.text),
+            Some(&message.text),
         ));
         line
     }

@@ -28,7 +28,7 @@ impl Windowable<&Tracker> for LogUi {
     const CONTEXT_MENU: bool = true;
     const DEFAULT_OPTIONS: bool = true;
 
-    fn render_menu(&mut self, ui: &Ui, _props: &&Tracker) {
+    fn render_menu(&mut self, ui: &Ui, _props: &mut &Tracker) {
         ui.checkbox(
             "Hover character names for account names",
             &mut self
