@@ -14,6 +14,22 @@ use super::ChatDatabase;
 
 pub enum DbQuery {
     Note(String),
+    SearchMessages {
+        query: String,
+        batch_size: usize,
+        sender: mpsc::Sender<Vec<ArchivedMessage>>,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub struct ArchivedMessage {
+    pub timestamp: i64,
+    pub account_name: String,
+    pub character_name: String,
+    pub text: String,
+    pub channel_type: i32,
+    pub subgroup: i32,
+    pub is_broadcast: bool,
 }
 
 #[derive(Clone)]
@@ -140,6 +156,69 @@ impl ChatDatabase {
                                 .lock()
                                 .unwrap()
                                 .insert(account_name.to_owned(), QueriedNote::NotFound);
+                        }
+                    }
+                    DbQuery::SearchMessages {
+                        query,
+                        batch_size,
+                        sender,
+                    } => {
+                        let sql = "SELECT timestamp, account_name, character_name, text, channel_type, subgroup, is_broadcast
+                                   FROM messages
+                                   WHERE account_name LIKE ?1 OR character_name LIKE ?2 OR text LIKE ?3
+                                   ORDER BY timestamp DESC";
+                        match connection.prepare_cached(sql) {
+                            Ok(mut statement) => {
+                                let like_query = format!("%{}%", query);
+                                let params = params![like_query, like_query, like_query];
+                                let messages_iter =
+                                    statement.query_map(params, |row| {
+                                        Ok(ArchivedMessage {
+                                            timestamp: row.get(0)?,
+                                            account_name: row.get(1)?,
+                                            character_name: row.get(2)?,
+                                            text: row.get(3)?,
+                                            channel_type: row.get(4)?,
+                                            subgroup: row.get(5)?,
+                                            is_broadcast: row.get(6)?,
+                                        })
+                                    });
+
+                                match messages_iter {
+                                    Ok(rows) => {
+                                        let mut batch = Vec::with_capacity(batch_size);
+                                        for row_result in rows {
+                                            match row_result {
+                                                Ok(message) => {
+                                                    batch.push(message);
+                                                    if batch.len() >= batch_size {
+                                                        if sender.send(batch.clone()).is_err() {
+                                                            error!("Failed to send message batch for query: {}", query);
+                                                            break; // Stop processing for this query
+                                                        }
+                                                        batch.clear();
+                                                    }
+                                                }
+                                                Err(err) => {
+                                                    error!("Failed to process row for query '{}': {:?}", query, err);
+                                                }
+                                            }
+                                        }
+                                        // Send any remaining messages in the last batch
+                                        if !batch.is_empty() {
+                                            if sender.send(batch).is_err() {
+                                                error!("Failed to send final message batch for query: {}", query);
+                                            }
+                                        }
+                                    }
+                                    Err(err) => {
+                                        error!("Failed to execute message search query '{}': {:?}", query, err);
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                error!("Failed to prepare message search statement for query '{}': {:?}", query, err);
+                            }
                         }
                     }
                 }

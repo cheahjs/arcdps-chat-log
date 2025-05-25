@@ -42,6 +42,9 @@ impl ChatDatabase {
             M::up(include_str!(
                 "../../migrations/2023-01-12-add-notes-color.sql"
             )),
+            M::up(include_str!(
+                "../../migrations/2023-10-27-add-message-search-indices.sql"
+            )),
         ]);
 
         let manager = SqliteConnectionManager::file(log_path);

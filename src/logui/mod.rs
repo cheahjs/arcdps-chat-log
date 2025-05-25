@@ -1,6 +1,12 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::VecDeque,
+    sync::{
+        mpsc::{self, Receiver},
+        Arc, Mutex,
+    },
+};
 
-use crate::db::ChatDatabase;
+use crate::{db::query::ArchivedMessage, db::ChatDatabase};
 
 use self::{buffer::LogBuffer, settings::ChatLogSettings};
 use windows::System::VirtualKey;
@@ -14,6 +20,10 @@ struct LocalProps {
     pub account_filter: String,
     pub text_filter: String,
     pub account_width: f32,
+    pub search_input: String,
+    pub search_results: VecDeque<ArchivedMessage>,
+    pub search_status: String,
+    pub search_result_receiver: Option<Receiver<Vec<ArchivedMessage>>>,
 }
 
 impl LocalProps {
@@ -22,6 +32,10 @@ impl LocalProps {
             account_filter: String::new(),
             text_filter: String::new(),
             account_width: 100.0,
+            search_input: String::new(),
+            search_results: VecDeque::new(),
+            search_status: String::new(),
+            search_result_receiver: None,
         }
     }
 }

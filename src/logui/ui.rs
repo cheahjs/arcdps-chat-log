@@ -14,7 +14,7 @@ use log::error;
 use crate::{
     db::{
         insert::{NoteColorUpdate, NoteToAdd},
-        query::QueriedNote,
+        query::{ArchivedMessage, DbQuery, QueriedNote},
         ChatDatabase,
     },
     tracking::Tracker,
@@ -75,6 +75,83 @@ impl Component<&Tracker> for LogUi {
         if self.settings.show_filters {
             ui.input_text("Filter", &mut self.ui_props.text_filter)
                 .build();
+        }
+
+        // Search UI
+        ui.input_text("Search Messages", &mut self.ui_props.search_input)
+            .build();
+        ui.same_line();
+        if ui.button("Search") {
+            self.ui_props.search_results.clear();
+            self.ui_props.search_status.clear();
+            // Drop the old receiver to stop processing previous search results if any
+            self.ui_props.search_result_receiver = None;
+
+            if self.ui_props.search_input.is_empty() {
+                self.ui_props.search_status = "Please enter a search term.".to_string();
+            } else {
+                let (tx, rx) = std::sync::mpsc::channel();
+                self.ui_props.search_result_receiver = Some(rx);
+
+                if let Some(db_mutex) = &self.chat_database {
+                    let db = db_mutex.lock().unwrap();
+                    if let Some(query_channel_mutex) = &db.query_channel {
+                        let query_channel = query_channel_mutex.lock().unwrap();
+                        let search_query = DbQuery::SearchMessages {
+                            query: self.ui_props.search_input.clone(),
+                            batch_size: 20, // Or another sensible default
+                            sender: tx,
+                        };
+                        if let Err(e) = query_channel.send(search_query) {
+                            log::error!("Failed to send search query to db thread: {}", e);
+                            self.ui_props.search_status = format!("Error starting search: {}", e);
+                            self.ui_props.search_result_receiver = None; // Clear receiver as search won't proceed
+                        } else {
+                            self.ui_props.search_status = "Searching...".to_string();
+                        }
+                    } else {
+                        self.ui_props.search_status = "Database query channel not available.".to_string();
+                        self.ui_props.search_result_receiver = None;
+                    }
+                } else {
+                    self.ui_props.search_status = "Chat database not available.".to_string();
+                    self.ui_props.search_result_receiver = None;
+                }
+            }
+        }
+        if !self.ui_props.search_status.is_empty() {
+            ui.text(&self.ui_props.search_status);
+        }
+
+        // Receiving and Displaying Results
+        if let Some(receiver) = &self.ui_props.search_result_receiver {
+            loop { // Loop to process all available messages in the channel for this frame
+                match receiver.try_recv() {
+                    Ok(batch) => {
+                        if !batch.is_empty() {
+                            self.ui_props.search_results.extend(batch);
+                            // Potentially cap self.ui_props.search_results size if memory is a concern
+                            // e.g., self.ui_props.search_results.truncate(MAX_SEARCH_RESULTS);
+                            self.ui_props.search_status = "Receiving results...".to_string(); // Or update count
+                        }
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Empty) => {
+                        // No messages currently available, break from loop and wait for next frame
+                        break;
+                    }
+                    Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                        // All results have been sent and the channel is closed
+                        if self.ui_props.search_results.is_empty() {
+                            self.ui_props.search_status = "No results found.".to_string();
+                        } else {
+                            // Clear status or set to "Search complete."
+                            self.ui_props.search_status = format!("Search complete. {} results found.", self.ui_props.search_results.len());
+                        }
+                        self.ui_props.search_result_receiver = None; // Mark search as complete
+                        break; // Important to break here
+                    }
+                }
+            }
         }
 
         if let Some(_child) = ChildWindow::new("chat_log_child_window").begin(ui) {
@@ -160,6 +237,32 @@ impl Component<&Tracker> for LogUi {
                     });
                 if ui.scroll_y() >= ui.scroll_max_y() {
                     ui.set_scroll_here_y_with_ratio(1.0);
+                }
+            }
+        }
+
+        // Display Search Results
+        if !self.ui_props.search_results.is_empty() {
+            ui.separator();
+            ui.text("Search Results:");
+            if let Some(_child) = ChildWindow::new("search_results_window")
+                .border(true)
+                .begin(ui)
+            {
+                for message in &self.ui_props.search_results {
+                    let formatted_timestamp = chrono::Local
+                        .timestamp_opt(message.timestamp, 0)
+                        .unwrap()
+                        .with_timezone(&chrono::Local)
+                        .format(DATETIME_FORMAT)
+                        .to_string();
+                    ui.text(format!(
+                        "[{}] {}: {}",
+                        formatted_timestamp, message.character_name, message.text
+                    ));
+                    if ui.is_item_hovered() {
+                        ui.tooltip_text(format!("Account: {}", message.account_name));
+                    }
                 }
             }
         }
