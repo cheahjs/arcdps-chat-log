@@ -80,7 +80,7 @@ pub struct ChatLogSettings {
 impl ChatLogSettings {
     pub fn new() -> Self {
         Self {
-            log_enabled: true,
+            log_enabled: false,
             log_path: Self::default_log_path().to_str().unwrap().to_string(),
             log_buffer: 10000,
             color_settings: ColorSettings::new(),

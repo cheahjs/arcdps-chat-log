@@ -128,7 +128,7 @@ impl Plugin {
                 ui.set_next_item_width(input_width);
                 if ui
                     .input_int(
-                        "Number of log messages to keep",
+                        "Number of log messages to keep for this session",
                         &mut self.log_ui.settings.log_buffer,
                     )
                     .build()
@@ -137,7 +137,7 @@ impl Plugin {
                 }
                 if ui.is_item_hovered() {
                     ui.tooltip_text(
-                        "This is the number of chat messages and squad updates to keep at a time",
+                        "This is the number of chat messages and squad updates to keep at a time in memory for this session",
                     );
                 }
                 render::input_key(
