@@ -8,7 +8,7 @@ use arcdps::{
 };
 use log::error;
 
-use crate::tts::TextToSpeech;
+use crate::{db::insert::ClearTimeRange, tts::TextToSpeech};
 
 use super::Plugin;
 
@@ -146,6 +146,68 @@ impl Plugin {
                     "Hotkey",
                     &mut self.log_ui.settings.hotkey,
                 );
+
+                ui.spacing();
+                ui.separator();
+                ui.spacing();
+                ui.text_colored(grey, "Clear Chat History");
+
+                let current_range = self.ui_state.clear_data_selected_range;
+                ui.set_next_item_width(input_width);
+                if let Some(_combo) = ui.begin_combo("Time range", current_range.display_name()) {
+                    for range in ClearTimeRange::ALL_RANGES {
+                        let is_selected = *range == current_range;
+                        if Selectable::new(range.display_name())
+                            .selected(is_selected)
+                            .build(ui)
+                        {
+                            self.ui_state.clear_data_selected_range = *range;
+                        }
+                    }
+                }
+
+                if ui.button("Clear data") {
+                    self.ui_state.clear_data_confirm_popup = true;
+                }
+                if ui.is_item_hovered() {
+                    ui.tooltip_text(
+                        "Delete chat messages from the database for the selected time range",
+                    );
+                }
+
+                // Confirmation popup
+                if self.ui_state.clear_data_confirm_popup {
+                    ui.open_popup("Confirm Clear Data");
+                    self.ui_state.clear_data_confirm_popup = false;
+                }
+
+                ui.popup_modal("Confirm Clear Data")
+                    .resizable(false)
+                    .build(ui, || {
+                        ui.text(format!(
+                            "Are you sure you want to delete chat messages from '{}'?",
+                            self.ui_state.clear_data_selected_range.display_name()
+                        ));
+                        ui.text("This action cannot be undone.");
+                        ui.spacing();
+
+                        if ui.button("Yes, delete") {
+                            if let Some(chat_database) = &self.chat_database {
+                                if let Err(err) = chat_database
+                                    .lock()
+                                    .unwrap()
+                                    .clear_messages(self.ui_state.clear_data_selected_range)
+                                {
+                                    error!("failed to clear messages: {:#}", err);
+                                }
+                            }
+                            ui.close_current_popup();
+                        }
+                        ui.same_line();
+                        if ui.button("Cancel") {
+                            ui.close_current_popup();
+                        }
+                    });
             }
             if let Some(_tab) = ui.tab_item("Notifications") {
                 ui.checkbox(

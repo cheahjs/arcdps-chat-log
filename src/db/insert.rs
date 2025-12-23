@@ -16,6 +16,55 @@ pub enum DbInsert {
     AddNote(NoteToAdd),
     DeleteNote(String),
     ColorNote(NoteColorUpdate),
+    ClearMessages(ClearMessagesRequest),
+}
+
+/// Time range options for clearing chat messages, similar to browser privacy settings
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClearTimeRange {
+    LastHour,
+    Last24Hours,
+    Last7Days,
+    Last4Weeks,
+    AllTime,
+}
+
+impl ClearTimeRange {
+    /// Returns the timestamp threshold - messages older than or equal to this should be deleted
+    /// Returns None for AllTime (delete everything)
+    pub fn cutoff_timestamp(&self) -> Option<i64> {
+        let now = chrono::Utc::now().timestamp();
+        match self {
+            ClearTimeRange::LastHour => Some(now - 3600),
+            ClearTimeRange::Last24Hours => Some(now - 86400),
+            ClearTimeRange::Last7Days => Some(now - 604800),
+            ClearTimeRange::Last4Weeks => Some(now - 2419200),
+            ClearTimeRange::AllTime => None,
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            ClearTimeRange::LastHour => "Last hour",
+            ClearTimeRange::Last24Hours => "Last 24 hours",
+            ClearTimeRange::Last7Days => "Last 7 days",
+            ClearTimeRange::Last4Weeks => "Last 4 weeks",
+            ClearTimeRange::AllTime => "All time",
+        }
+    }
+
+    pub const ALL_RANGES: &'static [ClearTimeRange] = &[
+        ClearTimeRange::LastHour,
+        ClearTimeRange::Last24Hours,
+        ClearTimeRange::Last7Days,
+        ClearTimeRange::Last4Weeks,
+        ClearTimeRange::AllTime,
+    ];
+}
+
+#[derive(Clone)]
+pub struct ClearMessagesRequest {
+    pub time_range: ClearTimeRange,
 }
 
 #[derive(Clone)]
@@ -137,6 +186,18 @@ impl ChatDatabase {
         Ok(())
     }
 
+    /// Clears chat messages from the database based on the specified time range
+    pub fn clear_messages(&self, time_range: ClearTimeRange) -> Result<(), anyhow::Error> {
+        if let Some(insert_channel) = &self.insert_channel {
+            insert_channel
+                .lock()
+                .unwrap()
+                .send(DbInsert::ClearMessages(ClearMessagesRequest { time_range }))
+                .context("failed to send clear messages request")?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn insert_thread(
         game_start: i64,
         pool: Pool<SqliteConnectionManager>,
@@ -220,6 +281,28 @@ impl ChatDatabase {
                         statement
                             .execute(params![account_name,])
                             .context("failed to delete note")?;
+                    }
+                    DbInsert::ClearMessages(request) => {
+                        match request.time_range.cutoff_timestamp() {
+                            Some(cutoff) => {
+                                // Delete messages newer than the cutoff timestamp
+                                let mut statement = connection
+                                    .prepare_cached("DELETE FROM messages WHERE timestamp >= ?1")
+                                    .context("failed to prepare clear messages statement")?;
+                                statement
+                                    .execute(params![cutoff])
+                                    .context("failed to clear messages")?;
+                            }
+                            None => {
+                                // Delete all messages
+                                let mut statement = connection
+                                    .prepare_cached("DELETE FROM messages")
+                                    .context("failed to prepare clear all messages statement")?;
+                                statement
+                                    .execute([])
+                                    .context("failed to clear all messages")?;
+                            }
+                        }
                     }
                 }
             } else if let Err(err) = event {
