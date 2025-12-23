@@ -32,6 +32,7 @@ pub struct UiState {
     pub notifications_state: NotificationsState,
     pub mumblelink_state: MumbleLinkState,
     pub tts_state: TtsState,
+    pub audio_devices: Vec<String>,
 }
 
 impl UiState {
@@ -41,6 +42,18 @@ impl UiState {
             notifications_state: NotificationsState::Unknown,
             mumblelink_state: MumbleLinkState::Unknown,
             tts_state: TtsState::Unknown,
+            audio_devices: Vec::new(),
+        }
+    }
+
+    pub fn refresh_audio_devices(&mut self) {
+        use rodio::cpal::traits::{DeviceTrait, HostTrait};
+        let host = rodio::cpal::default_host();
+        if let Ok(devices) = host.output_devices() {
+            self.audio_devices = devices
+                .filter_map(|d| d.name().ok())
+                .collect();
+            self.audio_devices.sort();
         }
     }
 }
