@@ -24,11 +24,11 @@ impl Notifications {
     }
 
     pub fn load(&mut self) -> anyhow::Result<()> {
-        self.update_ping_track()?;
         crate::AUDIO_PLAYER
             .lock()
             .unwrap()
             .set_device(self.settings.audio_device.clone());
+        self.update_ping_track()?;
         Ok(())
     }
 

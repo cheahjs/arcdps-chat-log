@@ -69,15 +69,16 @@ impl AudioPlayer {
                     }
                     AudioSignal::SetDevice(device_name) => {
                         if device_name != current_device_name {
-                            current_device_name = device_name;
                             stream_data = None; // Drop old stream
 
-                            if let Some(name) = &current_device_name {
+                            if let Some(name) = &device_name {
                                 let host = rodio::cpal::default_host();
                                 let mut devices = match host.output_devices() {
                                     Ok(d) => d,
                                     Err(e) => {
                                         error!("failed to list output devices: {:#}", e);
+                                        current_device_name = None;
+                                        stream_data = rodio::OutputStream::try_default().ok();
                                         continue;
                                     }
                                 };
@@ -87,17 +88,26 @@ impl AudioPlayer {
 
                                 if let Some(device) = device {
                                     match rodio::OutputStream::try_from_device(&device) {
-                                        Ok(res) => stream_data = Some(res),
+                                        Ok(res) => {
+                                            stream_data = Some(res);
+                                            current_device_name = device_name;
+                                        }
                                         Err(err) => {
                                             error!("failed to create output stream from device '{}': {:#}", name, err);
+                                            current_device_name = None;
                                             stream_data = rodio::OutputStream::try_default().ok();
                                         }
                                     }
                                 } else {
-                                    error!("audio device '{}' not found, falling back to default", name);
+                                    error!(
+                                        "audio device '{}' not found, falling back to default",
+                                        name
+                                    );
+                                    current_device_name = None;
                                     stream_data = rodio::OutputStream::try_default().ok();
                                 }
                             } else {
+                                current_device_name = None;
                                 stream_data = rodio::OutputStream::try_default().ok();
                             }
                         }
