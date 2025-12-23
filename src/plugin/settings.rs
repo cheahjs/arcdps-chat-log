@@ -187,7 +187,7 @@ impl Plugin {
                     }
 
                     ui.separator();
-                    if ui.selectable("Refresh devices") {
+                    if Selectable::new("Refresh devices").build(ui) {
                         self.ui_state.refresh_audio_devices();
                     }
                 }

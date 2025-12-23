@@ -69,8 +69,6 @@ impl AudioPlayer {
                     }
                     AudioSignal::SetDevice(device_name) => {
                         if device_name != current_device_name {
-                            stream_data = None; // Drop old stream
-
                             if let Some(name) = &device_name {
                                 let host = rodio::cpal::default_host();
                                 let mut devices = match host.output_devices() {
