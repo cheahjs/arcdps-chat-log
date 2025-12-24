@@ -52,15 +52,15 @@ impl AudioPlayer {
         use rodio::cpal::traits::{DeviceTrait, HostTrait};
 
         let mut current_device_name: Option<String> = None;
-        let mut stream_data: Option<(rodio::OutputStream, rodio::OutputStreamHandle)> =
-            rodio::OutputStream::try_default().ok();
+        let mut stream_data: Option<rodio::OutputStream> =
+            rodio::OutputStreamBuilder::open_default_stream().ok();
 
         loop {
             match receiver.recv() {
                 Ok(event) => match event {
                     AudioSignal::PlayTrack(track) => {
-                        if let Some((_stream, stream_handle)) = &stream_data {
-                            if let Err(err) = track.play(stream_handle) {
+                        if let Some(stream) = &stream_data {
+                            if let Err(err) = track.play(stream.mixer()) {
                                 error!("failed to play track: {:#}", err);
                             }
                         } else {
@@ -76,7 +76,8 @@ impl AudioPlayer {
                                     Err(e) => {
                                         error!("failed to list output devices: {:#}", e);
                                         current_device_name = None;
-                                        stream_data = rodio::OutputStream::try_default().ok();
+                                        stream_data =
+                                            rodio::OutputStreamBuilder::open_default_stream().ok();
                                         continue;
                                     }
                                 };
@@ -84,15 +85,24 @@ impl AudioPlayer {
                                     devices.find(|d| d.name().map(|n| n == *name).unwrap_or(false));
 
                                 if let Some(device) = device {
-                                    match rodio::OutputStream::try_from_device(&device) {
-                                        Ok(res) => {
-                                            stream_data = Some(res);
-                                            current_device_name = device_name;
-                                        }
+                                    match rodio::OutputStreamBuilder::from_device(device) {
+                                        Ok(builder) => match builder.open_stream_or_fallback() {
+                                            Ok(stream) => {
+                                                stream_data = Some(stream);
+                                                current_device_name = device_name;
+                                            }
+                                            Err(err) => {
+                                                error!("failed to create output stream from device '{}': {:#}", name, err);
+                                                current_device_name = None;
+                                                stream_data = rodio::OutputStreamBuilder::open_default_stream().ok();
+                                            }
+                                        },
                                         Err(err) => {
-                                            error!("failed to create output stream from device '{}': {:#}", name, err);
+                                            error!("failed to create output stream builder from device '{}': {:#}", name, err);
                                             current_device_name = None;
-                                            stream_data = rodio::OutputStream::try_default().ok();
+                                            stream_data =
+                                                rodio::OutputStreamBuilder::open_default_stream()
+                                                    .ok();
                                         }
                                     }
                                 } else {
@@ -101,11 +111,13 @@ impl AudioPlayer {
                                         name
                                     );
                                     current_device_name = None;
-                                    stream_data = rodio::OutputStream::try_default().ok();
+                                    stream_data =
+                                        rodio::OutputStreamBuilder::open_default_stream().ok();
                                 }
                             } else {
                                 current_device_name = None;
-                                stream_data = rodio::OutputStream::try_default().ok();
+                                stream_data =
+                                    rodio::OutputStreamBuilder::open_default_stream().ok();
                             }
                         }
                     }

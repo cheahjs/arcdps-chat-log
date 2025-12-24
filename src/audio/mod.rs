@@ -10,7 +10,7 @@ use std::{
 
 use anyhow::Context;
 use log::{debug, info};
-use rodio::{Decoder, OutputStreamHandle, Sink};
+use rodio::{mixer::Mixer, Decoder, Sink};
 
 /// Static sound data stored in memory.
 /// It is `Arc`'ed, so cheap to clone.
@@ -128,14 +128,13 @@ impl AudioTrack {
         self.data.is_some()
     }
 
-    pub fn play(self, stream_handle: &OutputStreamHandle) -> anyhow::Result<()> {
+    pub fn play(self, mixer: &Mixer) -> anyhow::Result<()> {
         debug!("playing sound {}", self.path);
         match self.data {
             Some(data) => {
                 let input =
                     Decoder::new(data).context(format!("failed to decode {}", self.path))?;
-                let sink = Sink::try_new(stream_handle)
-                    .context(format!("failed to create sink {}", self.path))?;
+                let sink = Sink::connect_new(mixer);
                 sink.set_volume(self.volume as f32 / 100f32);
                 sink.append(input);
                 sink.detach();

@@ -10,6 +10,7 @@ unsafe impl Send for LinkHandle {}
 unsafe impl Sync for LinkHandle {}
 
 bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     #[repr(C)]
     pub struct UiState: u32 {
         const IS_MAP_OPEN = 0b1;
@@ -102,7 +103,7 @@ impl MumbleLink {
         shared_file.push(0);
 
         unsafe {
-            let handle = kernel32::CreateFileMappingW(
+            let handle = winapi::um::memoryapi::CreateFileMappingW(
                 winapi::um::handleapi::INVALID_HANDLE_VALUE,
                 ptr::null_mut(),
                 winapi::um::winnt::PAGE_READWRITE,
@@ -114,15 +115,15 @@ impl MumbleLink {
                 return Err(io::Error::last_os_error().into());
             }
 
-            let pointer = kernel32::MapViewOfFile(
+            let pointer = winapi::um::memoryapi::MapViewOfFile(
                 handle,
                 winapi::um::memoryapi::FILE_MAP_READ,
                 0,
                 0,
-                linked_mem_size as u64,
+                linked_mem_size,
             );
             if pointer.is_null() {
-                kernel32::CloseHandle(handle);
+                winapi::um::handleapi::CloseHandle(handle);
                 return Err(io::Error::last_os_error().into());
             }
 
@@ -153,7 +154,7 @@ impl Drop for MumbleLink {
     fn drop(&mut self) {
         if let Some(handle) = self.handle.as_ref() {
             unsafe {
-                kernel32::CloseHandle(handle.0);
+                winapi::um::handleapi::CloseHandle(handle.0);
             }
         }
     }
