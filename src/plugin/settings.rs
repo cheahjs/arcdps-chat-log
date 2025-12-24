@@ -148,47 +148,54 @@ impl Plugin {
                 );
             }
             if let Some(_tab) = ui.tab_item("Notifications") {
-                if self.ui_state.audio_devices.is_empty() {
+                let audio_devices_guard = self.ui_state.audio_devices.lock().unwrap();
+                let refreshing_devices = *self.ui_state.refreshing_audio_devices.lock().unwrap();
+
+                if audio_devices_guard.is_empty() && !refreshing_devices {
+                    drop(audio_devices_guard);
                     self.ui_state.refresh_audio_devices();
-                }
+                } else {
+                    let current_device = self
+                        .notifications
+                        .settings
+                        .audio_device
+                        .as_deref()
+                        .unwrap_or("System Default");
 
-                let current_device = self
-                    .notifications
-                    .settings
-                    .audio_device
-                    .as_deref()
-                    .unwrap_or("System Default");
-
-                if let Some(_combo) = ui.begin_combo("Output device", current_device) {
-                    let is_default_selected = self.notifications.settings.audio_device.is_none();
-                    if Selectable::new("System Default")
-                        .selected(is_default_selected)
-                        .build(ui)
-                    {
-                        self.notifications.settings.audio_device = None;
-                        crate::AUDIO_PLAYER.lock().unwrap().set_device(None);
-                    }
-
-                    for device in &self.ui_state.audio_devices {
-                        let is_selected = self
-                            .notifications
-                            .settings
-                            .audio_device
-                            .as_ref()
-                            .map(|d| d == device)
-                            .unwrap_or(false);
-                        if Selectable::new(device).selected(is_selected).build(ui) {
-                            self.notifications.settings.audio_device = Some(device.clone());
-                            crate::AUDIO_PLAYER
-                                .lock()
-                                .unwrap()
-                                .set_device(Some(device.clone()));
+                    if let Some(_combo) = ui.begin_combo("Output device", current_device) {
+                        let is_default_selected = self.notifications.settings.audio_device.is_none();
+                        if Selectable::new("System Default")
+                            .selected(is_default_selected)
+                            .build(ui)
+                        {
+                            self.notifications.settings.audio_device = None;
+                            crate::AUDIO_PLAYER.lock().unwrap().set_device(None);
                         }
-                    }
 
-                    ui.separator();
-                    if Selectable::new("Refresh devices").build(ui) {
-                        self.ui_state.refresh_audio_devices();
+                        for device in &*audio_devices_guard {
+                            let is_selected = self
+                                .notifications
+                                .settings
+                                .audio_device
+                                .as_ref()
+                                .map(|d| d == device)
+                                .unwrap_or(false);
+                            if Selectable::new(device).selected(is_selected).build(ui) {
+                                self.notifications.settings.audio_device = Some(device.clone());
+                                crate::AUDIO_PLAYER
+                                    .lock()
+                                    .unwrap()
+                                    .set_device(Some(device.clone()));
+                            }
+                        }
+
+                        ui.separator();
+                        if refreshing_devices {
+                            ui.text("Refreshing...");
+                        } else if Selectable::new("Refresh devices").build(ui) {
+                            drop(audio_devices_guard);
+                            self.ui_state.refresh_audio_devices();
+                        }
                     }
                 }
 
