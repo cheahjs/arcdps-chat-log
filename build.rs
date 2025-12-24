@@ -39,10 +39,7 @@ fn main() {
             if shim_result.is_ok() {
                 if let Some(toolkit_path) = shim_rc.parent() {
                     res.set_toolkit_path(toolkit_path.to_string_lossy().as_ref());
-                    eprintln!(
-                        "info: using llvm-rc via shim at {}",
-                        shim_rc.display()
-                    );
+                    eprintln!("info: using llvm-rc via shim at {}", shim_rc.display());
                 }
             } else {
                 eprintln!("warning: failed to create llvm-rc shim, falling back to rc.exe lookup");
@@ -51,8 +48,6 @@ fn main() {
     }
 
     if let Err(err) = res.compile() {
-        eprintln!(
-            "warning: skipping Windows resource compilation (rc missing?): {err}"
-        );
+        eprintln!("warning: skipping Windows resource compilation (rc missing?): {err}");
     }
 }

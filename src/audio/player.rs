@@ -80,9 +80,8 @@ impl AudioPlayer {
                                         continue;
                                     }
                                 };
-                                let device = devices.find(|d| {
-                                    d.name().map(|n| n == *name).unwrap_or(false)
-                                });
+                                let device =
+                                    devices.find(|d| d.name().map(|n| n == *name).unwrap_or(false));
 
                                 if let Some(device) = device {
                                     match rodio::OutputStream::try_from_device(&device) {

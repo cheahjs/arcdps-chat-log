@@ -163,7 +163,8 @@ impl Plugin {
                         .unwrap_or("System Default");
 
                     if let Some(_combo) = ui.begin_combo("Output device", current_device) {
-                        let is_default_selected = self.notifications.settings.audio_device.is_none();
+                        let is_default_selected =
+                            self.notifications.settings.audio_device.is_none();
                         if Selectable::new("System Default")
                             .selected(is_default_selected)
                             .build(ui)
