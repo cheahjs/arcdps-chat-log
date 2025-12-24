@@ -75,6 +75,8 @@ pub struct ChatLogSettings {
     pub hotkey: Option<u32>,
     pub show_filters: bool,
     pub show_seen_users: bool,
+    /// Number of search results to load per batch
+    pub search_batch_size: u32,
 }
 
 impl ChatLogSettings {
@@ -88,6 +90,7 @@ impl ChatLogSettings {
             hotkey: Some(LogUi::DEFAULT_HOTKEY),
             show_filters: true,
             show_seen_users: true,
+            search_batch_size: 50,
         }
     }
 
