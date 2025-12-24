@@ -18,7 +18,7 @@ use rusqlite_migration::{Migrations, M};
 
 use self::{
     insert::DbInsert,
-    query::{DbQuery, QueriedNote},
+    query::{DbQuery, QueriedNote, SearchState},
 };
 
 pub struct ChatDatabase {
@@ -27,6 +27,7 @@ pub struct ChatDatabase {
     pub insert_channel: Option<Mutex<Sender<DbInsert>>>,
     pub query_channel: Option<Mutex<Sender<DbQuery>>>,
     pub note_cache: Arc<Mutex<HashMap<String, QueriedNote>>>,
+    pub search_state: Arc<Mutex<SearchState>>,
 }
 
 impl ChatDatabase {
@@ -72,9 +73,11 @@ impl ChatDatabase {
         let (query_send, query_recv) = mpsc::channel::<DbQuery>();
         let clone_pool = pool.clone();
         let note_cache = Arc::new(Mutex::new(HashMap::new()));
+        let search_state = Arc::new(Mutex::new(SearchState::Idle));
         let clone_note_cache = note_cache.clone();
+        let clone_search_state = search_state.clone();
         let _query_thread = Builder::new().name("chat_query".to_owned()).spawn(move || {
-            match Self::query_thread(clone_pool, query_recv, clone_note_cache) {
+            match Self::query_thread(clone_pool, query_recv, clone_note_cache, clone_search_state) {
                 Ok(_) => {}
                 Err(err) => {
                     error!("query thread failed: {:#}", err);
@@ -88,7 +91,7 @@ impl ChatDatabase {
             insert_channel: Some(Mutex::new(insert_send)),
             query_channel: Some(Mutex::new(query_send)),
             note_cache,
-            // game_start,
+            search_state,
         })
     }
 
