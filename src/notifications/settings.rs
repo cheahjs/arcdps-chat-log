@@ -8,6 +8,7 @@ use super::Notifications;
 pub struct NotificationsSettings {
     pub ping_volume: i32,
     pub ping_sound_path: String,
+    pub audio_device: Option<String>,
     pub ping_on_all_new_messages: bool,
     pub ping_on_self_message: bool,
     pub ping_in_combat: bool,
@@ -19,6 +20,7 @@ impl NotificationsSettings {
         Self {
             ping_volume: 100,
             ping_sound_path: String::new(),
+            audio_device: None,
             ping_on_all_new_messages: false,
             ping_on_self_message: false,
             ping_in_combat: true,
