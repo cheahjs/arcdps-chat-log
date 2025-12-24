@@ -104,11 +104,15 @@ fn wnd_filter(key: usize, key_down: bool, prev_key_down: bool) -> bool {
         .key_event(key, key_down, prev_key_down)
 }
 
-fn init() -> Result<(), String> {
+fn init() -> Result<(), Option<String>> {
     debug!("arc init");
     panic_handler::install_panic_handler();
 
-    PLUGIN.lock().unwrap().load().map_err(|e| e.to_string())
+    PLUGIN
+        .lock()
+        .unwrap()
+        .load()
+        .map_err(|e| Some(e.to_string()))
 }
 
 fn release() {
