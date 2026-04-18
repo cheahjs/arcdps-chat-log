@@ -69,7 +69,6 @@ impl LogPart {
             let end = start.add(s.len());
             let font = sys::igGetFont();
             let scale = ui.io().font_global_scale;
-            // imgui 1.92 renamed `ImFont_CalcWordWrapPositionA` to drop the `A` suffix.
             let end_line = sys::ImFont_CalcWordWrapPosition(
                 font,
                 scale,
