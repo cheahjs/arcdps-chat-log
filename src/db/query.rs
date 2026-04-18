@@ -101,6 +101,12 @@ pub enum SearchState {
     Error(String),
 }
 
+/// Wrap user input as a single FTS5 phrase query. Double quotes are escaped by
+/// doubling, per the FTS5 grammar, so arbitrary user input is safe to embed.
+fn fts_phrase(input: &str) -> String {
+    format!("\"{}\"", input.replace('"', "\"\""))
+}
+
 #[derive(Clone)]
 pub struct Note {
     pub account_name: String,
@@ -278,12 +284,10 @@ impl ChatDatabase {
         }
     }
 
-    // Note on performance: text search is implemented with `LIKE '%x%'` across
-    // `account_name`, `character_name`, and `text`. This forces a full table scan
-    // on every query, which will grow linearly with log size. The `timestamp`
-    // index only helps when no text filter is applied. A follow-up should move
-    // the text columns into an FTS5 virtual table (with the `trigram` tokenizer
-    // for substring matches) kept in sync via triggers on `messages`.
+    /// Minimum query length for FTS5 trigram matching. Shorter queries have no
+    /// complete trigrams and would return nothing, so we fall back to `LIKE`.
+    const FTS_MIN_LEN: usize = 3;
+
     pub(crate) fn execute_search(
         connection: &rusqlite::Connection,
         query: &SearchQuery,
@@ -292,8 +296,16 @@ impl ChatDatabase {
         let mut conditions = Vec::new();
         let mut param_values: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
-        // Text search across multiple fields
-        if !query.search_text.is_empty() {
+        // Text search: prefer FTS5 (trigram) for 3+ chars, fall back to LIKE
+        // for 1-2 char queries where trigram can't produce a complete token.
+        let use_fts = query.search_text.chars().count() >= Self::FTS_MIN_LEN;
+        if use_fts {
+            conditions.push(
+                "messages.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ?1)"
+                    .to_string(),
+            );
+            param_values.push(Box::new(fts_phrase(&query.search_text)));
+        } else if !query.search_text.is_empty() {
             conditions.push(
                 "(account_name LIKE ?1 OR character_name LIKE ?1 OR text LIKE ?1)".to_string(),
             );
@@ -332,15 +344,15 @@ impl ChatDatabase {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
-        // Query for batch_size + 1 results to determine if there are more
-        // This avoids an expensive COUNT(*) query that would scan all matching rows
+        // Query for batch_size + 1 results to determine if there are more.
+        // This avoids an expensive COUNT(*) query that would scan all matching rows.
         let limit_param_idx = param_values.len() + 1;
         let offset_param_idx = param_values.len() + 2;
 
         let results_sql = format!(
-            "SELECT channel_type, subgroup, is_broadcast, timestamp, account_name, character_name, text 
-             FROM messages {} 
-             ORDER BY timestamp DESC 
+            "SELECT channel_type, subgroup, is_broadcast, timestamp, account_name, character_name, text
+             FROM messages {}
+             ORDER BY timestamp DESC
              LIMIT ?{} OFFSET ?{}",
             where_clause, limit_param_idx, offset_param_idx
         );
@@ -407,6 +419,8 @@ mod tests {
             "../../migrations/2022-08-07-create-messages.sql"
         ))
         .unwrap();
+        conn.execute_batch(include_str!("../../migrations/2026-04-18-messages-fts.sql"))
+            .unwrap();
         conn
     }
 
@@ -603,5 +617,79 @@ mod tests {
                 .unwrap();
         assert!(r.messages.is_empty());
         assert!(!r.has_more);
+    }
+
+    #[test]
+    fn fts_matches_substring_in_middle_of_word() {
+        let conn = setup_db();
+        insert_msg(
+            &conn,
+            "Squad",
+            255,
+            false,
+            1,
+            "longaccountname.1234",
+            "Character",
+            "some irrelevant content",
+        );
+        // "acco" appears only in the middle of "longaccountname" — this is the
+        // case a token-based tokenizer would miss but trigram catches.
+        let r =
+            ChatDatabase::execute_search(&conn, &SearchQuery::new("acco".to_string(), 1)).unwrap();
+        assert_eq!(r.messages.len(), 1);
+    }
+
+    #[test]
+    fn fts_insert_trigger_keeps_index_in_sync() {
+        let conn = setup_db();
+        // Insert after the FTS table exists; the trigger should populate it.
+        insert_msg(
+            &conn,
+            "Squad",
+            255,
+            false,
+            1,
+            "alice.1234",
+            "Alice",
+            "hello trigram world",
+        );
+        let r = ChatDatabase::execute_search(&conn, &SearchQuery::new("trigram".to_string(), 1))
+            .unwrap();
+        assert_eq!(r.messages.len(), 1);
+    }
+
+    #[test]
+    fn short_query_falls_back_to_like() {
+        let conn = setup_db();
+        insert_msg(&conn, "Squad", 255, false, 1, "ab.0000", "X", "ab");
+        // 2-char query: trigram would return nothing, but LIKE fallback matches.
+        let r =
+            ChatDatabase::execute_search(&conn, &SearchQuery::new("ab".to_string(), 1)).unwrap();
+        assert_eq!(r.messages.len(), 1);
+    }
+
+    #[test]
+    fn fts_phrase_escapes_double_quotes() {
+        // Sanity-check the escape helper so stray quotes in user input can't
+        // produce a malformed MATCH expression.
+        assert_eq!(fts_phrase(r#"he said "hi""#), r#""he said ""hi""""#);
+    }
+
+    #[test]
+    fn fts_query_with_double_quotes_does_not_error() {
+        let conn = setup_db();
+        insert_msg(
+            &conn,
+            "Squad",
+            255,
+            false,
+            1,
+            "acct.0000",
+            "Char",
+            r#"he said "hi""#,
+        );
+        let r = ChatDatabase::execute_search(&conn, &SearchQuery::new(r#""hi""#.to_string(), 1))
+            .unwrap();
+        assert_eq!(r.messages.len(), 1);
     }
 }
