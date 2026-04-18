@@ -10,7 +10,7 @@ use arcdps::{
 };
 use chrono::Local;
 
-use super::settings::{ColorSettings, FilterSettings};
+use super::settings::{ColorSettings, FilterSettings, SQUAD_BROADCAST_SUBGROUP};
 
 const TIMESTAMP_FORMAT: &str = "%H:%M:%S";
 
@@ -273,26 +273,10 @@ impl LogBuffer {
             ChannelType::Reserved => LogType::Generic,
             ChannelType::Invalid => LogType::Generic,
         };
-        let text_color = match message.channel_type {
-            ChannelType::Party => Some(self.colors.party_chat),
-            ChannelType::Squad => Some(if message.subgroup == 255 {
-                self.colors.squad_chat
-            } else {
-                self.colors.party_chat
-            }),
-            ChannelType::Reserved => None,
-            ChannelType::Invalid => None,
-        };
-        let user_color = match message.channel_type {
-            ChannelType::Party => Some(self.colors.party_user),
-            ChannelType::Squad => Some(if message.subgroup == 255 {
-                self.colors.squad_user
-            } else {
-                self.colors.party_user
-            }),
-            ChannelType::Reserved => None,
-            ChannelType::Invalid => None,
-        };
+        let channel_str = message.channel_type.to_string();
+        let subgroup = message.subgroup as i32;
+        let text_color = self.colors.text_color(&channel_str, subgroup);
+        let user_color = self.colors.user_color(&channel_str, subgroup);
 
         line.parts
             .push(LogPart::new_time(message.timestamp.unwrap_or_default()));
@@ -303,7 +287,7 @@ impl LogBuffer {
             None,
         ));
         if message.channel_type == ChannelType::Squad {
-            if message.subgroup != 255 {
+            if (message.subgroup as i32) != SQUAD_BROADCAST_SUBGROUP {
                 line.parts.push(LogPart::new(
                     &format!("[{}]", message.subgroup + 1),
                     None,

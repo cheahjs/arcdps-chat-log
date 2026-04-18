@@ -17,10 +17,13 @@ use crate::{
         query::{QueriedNote, SearchQuery, SearchState},
         ChatDatabase,
     },
+    logui::settings::SQUAD_BROADCAST_SUBGROUP,
     tracking::Tracker,
 };
 
 use super::{LogUi, CHANNEL_TYPES};
+
+const DEFAULT_TEXT_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 const DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 const SEARCH_DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M";
@@ -254,6 +257,17 @@ impl LogUi {
                 .begin(ui)
             {
                 for msg in &self.search_state.cached_results {
+                    let channel_color = self
+                        .buffer
+                        .colors
+                        .text_color(&msg.channel_type, msg.subgroup)
+                        .unwrap_or(DEFAULT_TEXT_COLOR);
+                    let user_color = self
+                        .buffer
+                        .colors
+                        .user_color(&msg.channel_type, msg.subgroup)
+                        .unwrap_or(DEFAULT_TEXT_COLOR);
+
                     // Timestamp
                     ui.text_colored(
                         grey,
@@ -265,22 +279,11 @@ impl LogUi {
                     ui.same_line_with_spacing(0.0, 0.0);
 
                     // Channel type
-                    let channel_color = match msg.channel_type.as_str() {
-                        "Squad" => {
-                            if msg.subgroup == 255 {
-                                self.buffer.colors.squad_chat
-                            } else {
-                                self.buffer.colors.party_chat
-                            }
-                        }
-                        "Party" => self.buffer.colors.party_chat,
-                        _ => [1.0, 1.0, 1.0, 1.0],
-                    };
                     ui.text_colored(grey, format!("[{}]", msg.channel_type));
                     ui.same_line_with_spacing(0.0, 0.0);
 
                     // Subgroup for squad messages
-                    if msg.channel_type == "Squad" && msg.subgroup != 255 {
+                    if msg.channel_type == "Squad" && msg.subgroup != SQUAD_BROADCAST_SUBGROUP {
                         ui.text_colored(channel_color, format!("[{}]", msg.subgroup + 1));
                         ui.same_line_with_spacing(0.0, 0.0);
                     }
@@ -291,18 +294,6 @@ impl LogUi {
                         ui.same_line_with_spacing(0.0, 0.0);
                     }
 
-                    // Character name with account tooltip
-                    let user_color = match msg.channel_type.as_str() {
-                        "Squad" => {
-                            if msg.subgroup == 255 {
-                                self.buffer.colors.squad_user
-                            } else {
-                                self.buffer.colors.party_user
-                            }
-                        }
-                        "Party" => self.buffer.colors.party_user,
-                        _ => [1.0, 1.0, 1.0, 1.0],
-                    };
                     ui.text_colored(user_color, format!(" {}", msg.character_name));
                     if ui.is_item_hovered() {
                         ui.tooltip_text(&msg.account_name);
@@ -315,12 +306,11 @@ impl LogUi {
             }
 
             // Load more button
-            if self.search_state.has_more && !self.search_state.is_searching {
-                if ui.button("Load More") {
-                    self.load_more_search_results();
-                }
-                ui.same_line();
-                ui.text_colored(grey, "(scroll for more results)");
+            if self.search_state.has_more
+                && !self.search_state.is_searching
+                && ui.button("Load More")
+            {
+                self.load_more_search_results();
             }
 
             // Trigger search if requested

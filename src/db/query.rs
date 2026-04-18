@@ -69,7 +69,8 @@ impl SearchResultMessage {
     pub fn timestamp_datetime(&self) -> chrono::DateTime<chrono::Local> {
         chrono::Utc
             .timestamp_opt(self.timestamp, 0)
-            .unwrap()
+            .single()
+            .unwrap_or_else(|| chrono::Utc.timestamp_opt(0, 0).unwrap())
             .with_timezone(&chrono::Local)
     }
 }
@@ -277,8 +278,14 @@ impl ChatDatabase {
         }
     }
 
-    fn execute_search(
-        connection: &r2d2::PooledConnection<SqliteConnectionManager>,
+    // Note on performance: text search is implemented with `LIKE '%x%'` across
+    // `account_name`, `character_name`, and `text`. This forces a full table scan
+    // on every query, which will grow linearly with log size. The `timestamp`
+    // index only helps when no text filter is applied. A follow-up should move
+    // the text columns into an FTS5 virtual table (with the `trigram` tokenizer
+    // for substring matches) kept in sync via triggers on `messages`.
+    pub(crate) fn execute_search(
+        connection: &rusqlite::Connection,
         query: &SearchQuery,
     ) -> anyhow::Result<SearchResults> {
         // Build the WHERE clause dynamically
@@ -386,5 +393,215 @@ impl ChatDatabase {
             has_more,
             offset: query.offset,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn setup_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(include_str!(
+            "../../migrations/2022-08-07-create-messages.sql"
+        ))
+        .unwrap();
+        conn
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn insert_msg(
+        conn: &Connection,
+        channel_type: &str,
+        subgroup: i32,
+        is_broadcast: bool,
+        timestamp: i64,
+        account_name: &str,
+        character_name: &str,
+        text: &str,
+    ) {
+        conn.execute(
+            "INSERT INTO messages (
+                channel_id, channel_type, subgroup, is_broadcast, timestamp,
+                account_name, character_name, text, game_start
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                0,
+                channel_type,
+                subgroup,
+                is_broadcast,
+                timestamp,
+                account_name,
+                character_name,
+                text,
+                0
+            ],
+        )
+        .unwrap();
+    }
+
+    fn seed(conn: &Connection) {
+        insert_msg(
+            conn,
+            "Squad",
+            255,
+            false,
+            100,
+            "alice.1234",
+            "Alice",
+            "hello world",
+        );
+        insert_msg(
+            conn,
+            "Squad",
+            1,
+            true,
+            200,
+            "bob.5678",
+            "Bobby",
+            "broadcast ping",
+        );
+        insert_msg(
+            conn,
+            "Party",
+            255,
+            false,
+            300,
+            "carol.9000",
+            "Carol",
+            "party up",
+        );
+        insert_msg(
+            conn,
+            "Squad",
+            255,
+            false,
+            400,
+            "dave.1111",
+            "David",
+            "goodbye world",
+        );
+    }
+
+    #[test]
+    fn search_text_matches_across_fields() {
+        let conn = setup_db();
+        seed(&conn);
+
+        // matches in `text`
+        let r =
+            ChatDatabase::execute_search(&conn, &SearchQuery::new("world".to_string(), 1)).unwrap();
+        assert_eq!(r.messages.len(), 2);
+        // ORDER BY timestamp DESC
+        assert_eq!(r.messages[0].timestamp, 400);
+        assert_eq!(r.messages[1].timestamp, 100);
+
+        // matches in `account_name`
+        let r =
+            ChatDatabase::execute_search(&conn, &SearchQuery::new("bob".to_string(), 2)).unwrap();
+        assert_eq!(r.messages.len(), 1);
+        assert_eq!(r.messages[0].account_name, "bob.5678");
+
+        // matches in `character_name`
+        let r =
+            ChatDatabase::execute_search(&conn, &SearchQuery::new("Carol".to_string(), 3)).unwrap();
+        assert_eq!(r.messages.len(), 1);
+        assert_eq!(r.messages[0].character_name, "Carol");
+    }
+
+    #[test]
+    fn empty_search_text_returns_all() {
+        let conn = setup_db();
+        seed(&conn);
+        let r = ChatDatabase::execute_search(&conn, &SearchQuery::new(String::new(), 1)).unwrap();
+        assert_eq!(r.messages.len(), 4);
+    }
+
+    #[test]
+    fn filters_combine_with_and() {
+        let conn = setup_db();
+        seed(&conn);
+
+        let mut q = SearchQuery::new(String::new(), 1);
+        q.channel_type = Some("Squad".to_string());
+        let r = ChatDatabase::execute_search(&conn, &q).unwrap();
+        assert_eq!(r.messages.len(), 3);
+        assert!(r.messages.iter().all(|m| m.channel_type == "Squad"));
+
+        let mut q = SearchQuery::new(String::new(), 2);
+        q.timestamp_min = Some(200);
+        q.timestamp_max = Some(300);
+        let r = ChatDatabase::execute_search(&conn, &q).unwrap();
+        assert_eq!(r.messages.len(), 2);
+        assert!(r
+            .messages
+            .iter()
+            .all(|m| (200..=300).contains(&m.timestamp)));
+
+        let mut q = SearchQuery::new("world".to_string(), 3);
+        q.account_name = Some("alice".to_string());
+        let r = ChatDatabase::execute_search(&conn, &q).unwrap();
+        assert_eq!(r.messages.len(), 1);
+        assert_eq!(r.messages[0].account_name, "alice.1234");
+    }
+
+    #[test]
+    fn pagination_has_more_and_offset() {
+        let conn = setup_db();
+        for i in 0..5 {
+            insert_msg(
+                &conn,
+                "Squad",
+                255,
+                false,
+                i,
+                "acct.0000",
+                "Char",
+                &format!("msg {}", i),
+            );
+        }
+
+        let mut q = SearchQuery::new("msg".to_string(), 1);
+        q.batch_size = 2;
+
+        // First page: has_more = true, returns 2 newest
+        let page1 = ChatDatabase::execute_search(&conn, &q).unwrap();
+        assert_eq!(page1.messages.len(), 2);
+        assert!(page1.has_more);
+        assert_eq!(page1.offset, 0);
+        assert_eq!(page1.messages[0].timestamp, 4);
+        assert_eq!(page1.messages[1].timestamp, 3);
+
+        // Second page: still has_more
+        q.offset = 2;
+        let page2 = ChatDatabase::execute_search(&conn, &q).unwrap();
+        assert_eq!(page2.messages.len(), 2);
+        assert!(page2.has_more);
+        assert_eq!(page2.messages[0].timestamp, 2);
+        assert_eq!(page2.messages[1].timestamp, 1);
+
+        // Final page: exactly 1 remaining, has_more = false
+        q.offset = 4;
+        let page3 = ChatDatabase::execute_search(&conn, &q).unwrap();
+        assert_eq!(page3.messages.len(), 1);
+        assert!(!page3.has_more);
+
+        // Past the end: empty
+        q.offset = 10;
+        let page_empty = ChatDatabase::execute_search(&conn, &q).unwrap();
+        assert!(page_empty.messages.is_empty());
+        assert!(!page_empty.has_more);
+    }
+
+    #[test]
+    fn no_match_returns_empty() {
+        let conn = setup_db();
+        seed(&conn);
+        let r =
+            ChatDatabase::execute_search(&conn, &SearchQuery::new("nonexistent".to_string(), 1))
+                .unwrap();
+        assert!(r.messages.is_empty());
+        assert!(!r.has_more);
     }
 }
