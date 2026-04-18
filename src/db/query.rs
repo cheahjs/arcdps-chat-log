@@ -83,8 +83,6 @@ pub struct SearchResults {
     pub messages: Vec<SearchResultMessage>,
     /// Whether there are more results available
     pub has_more: bool,
-    /// Total count of matching messages (if available)
-    pub total_count: Option<u64>,
     /// Current offset
     pub offset: u32,
 }
@@ -187,12 +185,6 @@ impl ChatDatabase {
     /// Get the current search state
     pub fn get_search_state(&self) -> SearchState {
         self.search_state.lock().unwrap().clone()
-    }
-
-    /// Clear search results
-    pub fn clear_search(&self) {
-        let mut search_state = self.search_state.lock().unwrap();
-        *search_state = SearchState::Idle;
     }
 
     pub(crate) fn query_thread(
@@ -392,7 +384,6 @@ impl ChatDatabase {
             search_id: query.search_id,
             messages,
             has_more,
-            total_count: None, // No longer computing total count
             offset: query.offset,
         })
     }

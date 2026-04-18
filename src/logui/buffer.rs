@@ -129,10 +129,9 @@ impl LogPart {
     }
 
     pub fn get_text(&self, display_hover: bool) -> String {
-        if display_hover || self.hover.is_none() {
-            self.text.clone()
-        } else {
-            format!("{} ({})", self.text, self.hover.as_ref().unwrap())
+        match (display_hover, self.hover.as_ref()) {
+            (false, Some(hover)) => format!("{} ({})", self.text, hover),
+            _ => self.text.clone(),
         }
     }
 
