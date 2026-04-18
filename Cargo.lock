@@ -79,7 +79,7 @@ dependencies = [
 [[package]]
 name = "arcdps"
 version = "0.22.0"
-source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#0785b2a5bfd93a8fbc6e3ba22339470ee44e5298"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#50d74c23dfadf0b93ed9a029622178f4dc6d0506"
 dependencies = [
  "arcdps-imgui",
  "arcdps_codegen",
@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "arcdps-chat-log"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "arc_util",
@@ -124,7 +124,7 @@ dependencies = [
 [[package]]
 name = "arcdps-imgui"
 version = "0.13.0"
-source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#6494238f7e6e111dc3e89150883f7b382c0dca86"
+source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#36a2fefa5def3f07309a179a71d196d0c0840ed8"
 dependencies = [
  "arcdps-imgui-sys",
  "bitflags 1.3.2",
@@ -136,7 +136,7 @@ dependencies = [
 [[package]]
 name = "arcdps-imgui-sys"
 version = "0.13.0"
-source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#6494238f7e6e111dc3e89150883f7b382c0dca86"
+source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#36a2fefa5def3f07309a179a71d196d0c0840ed8"
 dependencies = [
  "cc",
  "cfg-if",
@@ -146,7 +146,7 @@ dependencies = [
 [[package]]
 name = "arcdps_codegen"
 version = "0.12.1"
-source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#0785b2a5bfd93a8fbc6e3ba22339470ee44e5298"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#50d74c23dfadf0b93ed9a029622178f4dc6d0506"
 dependencies = [
  "cfg-if",
  "paste",
@@ -490,7 +490,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 [[package]]
 name = "evtc"
 version = "0.14.0"
-source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#0785b2a5bfd93a8fbc6e3ba22339470ee44e5298"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#50d74c23dfadf0b93ed9a029622178f4dc6d0506"
 dependencies = [
  "bitflags 2.10.0",
  "memoffset",
@@ -602,7 +602,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.62.2",
+ "windows-core 0.59.0",
 ]
 
 [[package]]
@@ -859,7 +859,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0df7ac00c4672f9d5aece54ee3347520b7e20f158656c7db2e6de01902eb7a6c"
 dependencies = [
  "darling",
- "proc-macro-crate 1.3.1",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -968,7 +968,7 @@ version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcbff9bc912032c62bf65ef1d5aea88983b420f4f839db1e9b0c281a25c9c799"
 dependencies = [
- "proc-macro-crate 1.3.1",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -980,7 +980,7 @@ version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff32365de1b6743cb203b710788263c44a03de03802daf96092f2da4fe6ba4d7"
 dependencies = [
- "proc-macro-crate 3.4.0",
+ "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn 2.0.111",
@@ -1162,16 +1162,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f4c021e1093a56626774e81216a4ce732a735e5bad4868a03f3ed65ca0c3919"
 dependencies = [
  "once_cell",
- "toml_edit 0.19.15",
-]
-
-[[package]]
-name = "proc-macro-crate"
-version = "3.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "219cb19e96be00ab2e37d6e299658a0cfa83e52429179969b0f0121b4ac46983"
-dependencies = [
- "toml_edit 0.23.10+spec-1.0.0",
+ "toml_edit",
 ]
 
 [[package]]
@@ -1739,44 +1730,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c"
 
 [[package]]
-name = "toml_datetime"
-version = "0.7.5+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92e1cfed4a3038bc5a127e35a2d360f145e1f4b971b551a2ba5fd7aedf7e1347"
-dependencies = [
- "serde_core",
-]
-
-[[package]]
 name = "toml_edit"
 version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
  "indexmap",
- "toml_datetime 0.6.11",
- "winnow 0.5.40",
-]
-
-[[package]]
-name = "toml_edit"
-version = "0.23.10+spec-1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84c8b9f757e028cee9fa244aea147aab2a9ec09d5325a9b01e0a49730c2b5269"
-dependencies = [
- "indexmap",
- "toml_datetime 0.7.5+spec-1.1.0",
- "toml_parser",
- "winnow 0.7.14",
-]
-
-[[package]]
-name = "toml_parser"
-version = "1.0.6+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3198b4b0a8e11f09dd03e133c0280504d0801269e9afa46362ffde1cbeebf44"
-dependencies = [
- "winnow 0.7.14",
+ "toml_datetime",
+ "winnow",
 ]
 
 [[package]]
@@ -2365,15 +2326,6 @@ name = "winnow"
 version = "0.5.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f593a95398737aeed53e489c785df13f3618e41dbcd6718c6addbf1395aa6876"
-dependencies = [
- "memchr",
-]
-
-[[package]]
-name = "winnow"
-version = "0.7.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a5364e9d77fcdeeaa6062ced926ee3381faa2ee02d3eb83a5c27a8825540829"
 dependencies = [
  "memchr",
 ]
