@@ -37,6 +37,10 @@ impl Default for FilterSettings {
     }
 }
 
+/// Subgroup value used when a squad message is not targeted at a specific
+/// subgroup (i.e. it was sent to the whole squad).
+pub const SQUAD_BROADCAST_SUBGROUP: i32 = 255;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Copy)]
 #[serde(default)]
 pub struct ColorSettings {
@@ -54,6 +58,34 @@ impl ColorSettings {
             party_chat: [188.0 / 255.0, 222.0 / 255.0, 255.0 / 255.0, 1.0],
             squad_user: [192.0 / 255.0, 241.0 / 255.0, 97.0 / 255.0, 1.0],
             party_user: [68.0 / 255.0, 188.0 / 255.0, 255.0 / 255.0, 1.0],
+        }
+    }
+
+    /// Color for message text on the given channel.
+    /// Returns `None` for channel types that should use the default color.
+    pub fn text_color(&self, channel_type: &str, subgroup: i32) -> Option<[f32; 4]> {
+        match channel_type {
+            "Party" => Some(self.party_chat),
+            "Squad" => Some(if subgroup == SQUAD_BROADCAST_SUBGROUP {
+                self.squad_chat
+            } else {
+                self.party_chat
+            }),
+            _ => None,
+        }
+    }
+
+    /// Color for the character name on the given channel.
+    /// Returns `None` for channel types that should use the default color.
+    pub fn user_color(&self, channel_type: &str, subgroup: i32) -> Option<[f32; 4]> {
+        match channel_type {
+            "Party" => Some(self.party_user),
+            "Squad" => Some(if subgroup == SQUAD_BROADCAST_SUBGROUP {
+                self.squad_user
+            } else {
+                self.party_user
+            }),
+            _ => None,
         }
     }
 }
@@ -75,6 +107,8 @@ pub struct ChatLogSettings {
     pub hotkey: Option<u32>,
     pub show_filters: bool,
     pub show_seen_users: bool,
+    /// Number of search results to load per batch
+    pub search_batch_size: u32,
 }
 
 impl ChatLogSettings {
@@ -88,6 +122,7 @@ impl ChatLogSettings {
             hotkey: Some(LogUi::DEFAULT_HOTKEY),
             show_filters: true,
             show_seen_users: true,
+            search_batch_size: 50,
         }
     }
 
