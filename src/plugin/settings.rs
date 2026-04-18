@@ -2,10 +2,7 @@ use arc_util::ui::{
     render::{self},
     Hideable, Ui,
 };
-use arcdps::{
-    exports::{self, CoreColor},
-    imgui::{Selectable, Slider},
-};
+use arcdps::exports::{self, CoreColor};
 use log::error;
 
 use crate::tts::TextToSpeech;
@@ -165,9 +162,10 @@ impl Plugin {
                     if let Some(_combo) = ui.begin_combo("Output device", current_device) {
                         let is_default_selected =
                             self.notifications.settings.audio_device.is_none();
-                        if Selectable::new("System Default")
+                        if ui
+                            .selectable_config("System Default")
                             .selected(is_default_selected)
-                            .build(ui)
+                            .build()
                         {
                             self.notifications.settings.audio_device = None;
                             crate::AUDIO_PLAYER.lock().unwrap().set_device(None);
@@ -181,7 +179,7 @@ impl Plugin {
                                 .as_ref()
                                 .map(|d| d == device)
                                 .unwrap_or(false);
-                            if Selectable::new(device).selected(is_selected).build(ui) {
+                            if ui.selectable_config(device).selected(is_selected).build() {
                                 self.notifications.settings.audio_device = Some(device.clone());
                                 crate::AUDIO_PLAYER
                                     .lock()
@@ -193,7 +191,7 @@ impl Plugin {
                         ui.separator();
                         if refreshing_devices {
                             ui.text("Refreshing...");
-                        } else if Selectable::new("Refresh devices").build(ui) {
+                        } else if ui.selectable("Refresh devices") {
                             drop(audio_devices_guard);
                             self.ui_state.refresh_audio_devices();
                         }
@@ -218,8 +216,12 @@ impl Plugin {
                 );
 
                 ui.set_next_item_width(input_width);
-                Slider::new("Ping volume", 0, 100)
-                    .build(ui, &mut self.notifications.settings.ping_volume);
+                ui.slider(
+                    "Ping volume",
+                    0,
+                    100,
+                    &mut self.notifications.settings.ping_volume,
+                );
 
                 ui.input_text(
                     "Ping sound path (blank for default)",
@@ -307,9 +309,10 @@ impl Plugin {
                     ) {
                         for (i, voice) in voices.iter().enumerate() {
                             let is_selected = i == cur_pos;
-                            if Selectable::new(TextToSpeech::get_display_name_for_voice(voice))
+                            if ui
+                                .selectable_config(TextToSpeech::get_display_name_for_voice(voice))
                                 .selected(is_selected)
-                                .build(ui)
+                                .build()
                             {
                                 new_voice_id = voice.id().clone();
                             }
@@ -324,33 +327,36 @@ impl Plugin {
                 }
 
                 ui.set_next_item_width(input_width);
-                if Slider::new("TTS volume", 0, 100).build(ui, &mut self.tts.settings.volume) {
+                if ui
+                    .slider("TTS volume", 0, 100, &mut self.tts.settings.volume)
+                {
                     let _ = self.tts.update_settings();
                 }
                 ui.set_next_item_width(input_width);
-                if Slider::new(
+                if ui.slider(
                     "TTS rate",
                     TextToSpeech::min_rate(),
                     TextToSpeech::max_rate(),
-                )
-                .build(ui, &mut self.tts.settings.rate)
-                {
+                    &mut self.tts.settings.rate,
+                ) {
                     let _ = self.tts.update_settings();
                 }
                 ui.set_next_item_width(input_width);
-                if Slider::new(
+                if ui.slider(
                     "TTS pitch",
                     TextToSpeech::min_pitch(),
                     TextToSpeech::max_pitch(),
-                )
-                .build(ui, &mut self.tts.settings.pitch)
-                {
+                    &mut self.tts.settings.pitch,
+                ) {
                     let _ = self.tts.update_settings();
                 }
                 ui.set_next_item_width(input_width);
-                if Slider::new("TTS silence between messages (milliseconds)", 0, 2000)
-                    .build(ui, &mut self.tts.settings.silence_between_messages)
-                {
+                if ui.slider(
+                    "TTS silence between messages (milliseconds)",
+                    0,
+                    2000,
+                    &mut self.tts.settings.silence_between_messages,
+                ) {
                     let _ = self.tts.update_settings();
                 }
 

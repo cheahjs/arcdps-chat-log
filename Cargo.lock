@@ -66,7 +66,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 [[package]]
 name = "arc_util"
 version = "0.11.5"
-source = "git+https://github.com/zerthox/arcdps-utils#915ff307195fbd9203814e318a9d96929d44359d"
+source = "git+https://github.com/cheahjs/arcdps-utils?branch=bump-imgui-1.92.7#32cd2dfceff7c7a8461197dbd2561e60f74206d9"
 dependencies = [
  "arcdps",
  "chrono",
@@ -79,7 +79,7 @@ dependencies = [
 [[package]]
 name = "arcdps"
 version = "0.22.0"
-source = "git+https://github.com/zerthox/arcdps-rs#9deb6990b9c9c837983e2e44b75d996b799afd02"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#0785b2a5bfd93a8fbc6e3ba22339470ee44e5298"
 dependencies = [
  "arcdps-imgui",
  "arcdps_codegen",
@@ -123,29 +123,30 @@ dependencies = [
 
 [[package]]
 name = "arcdps-imgui"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12f578f5194d5eb98de932684b4d2cdd1dcb8efdb97c2c0b2f57f79d262b866c"
+version = "0.13.0"
+source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#6494238f7e6e111dc3e89150883f7b382c0dca86"
 dependencies = [
  "arcdps-imgui-sys",
  "bitflags 1.3.2",
- "parking_lot 0.11.2",
+ "cfg-if",
+ "mint",
+ "parking_lot",
 ]
 
 [[package]]
 name = "arcdps-imgui-sys"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a739ce8c804e41f71f363d17f002e91c263af34cdbdc835c5d0513982ca09af8"
+version = "0.13.0"
+source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#6494238f7e6e111dc3e89150883f7b382c0dca86"
 dependencies = [
  "cc",
- "chlorine",
+ "cfg-if",
+ "mint",
 ]
 
 [[package]]
 name = "arcdps_codegen"
 version = "0.12.1"
-source = "git+https://github.com/zerthox/arcdps-rs#9deb6990b9c9c837983e2e44b75d996b799afd02"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#0785b2a5bfd93a8fbc6e3ba22339470ee44e5298"
 dependencies = [
  "cfg-if",
  "paste",
@@ -270,12 +271,6 @@ name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
-
-[[package]]
-name = "chlorine"
-version = "1.0.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c00d31b1d19317b4777ec879192d3745bd97d05262b4b19cb1dda284b9d22f19"
 
 [[package]]
 name = "chrono"
@@ -495,7 +490,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 [[package]]
 name = "evtc"
 version = "0.14.0"
-source = "git+https://github.com/zerthox/arcdps-rs#9deb6990b9c9c837983e2e44b75d996b799afd02"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#0785b2a5bfd93a8fbc6e3ba22339470ee44e5298"
 dependencies = [
  "bitflags 2.10.0",
  "memoffset",
@@ -633,15 +628,6 @@ checksum = "0ad4bb2b565bca0645f4d68c5c9af97fba094e9791da685bf83cb5f3ce74acf2"
 dependencies = [
  "equivalent",
  "hashbrown 0.16.1",
-]
-
-[[package]]
-name = "instant"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0242819d153cba4b4b05a5a8f2a7e9bbf97b6055b2a002b395c96b5ff3c0222"
-dependencies = [
- "cfg-if",
 ]
 
 [[package]]
@@ -811,6 +797,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "mint"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e53debba6bda7a793e5f99b8dacf19e626084f525f7829104ba9898f367d85ff"
+
+[[package]]
 name = "ndk"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -857,7 +849,7 @@ dependencies = [
  "ndk-macro",
  "ndk-sys 0.4.1+23.1.7779620",
  "once_cell",
- "parking_lot 0.12.5",
+ "parking_lot",
 ]
 
 [[package]]
@@ -1111,37 +1103,12 @@ dependencies = [
 
 [[package]]
 name = "parking_lot"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
-dependencies = [
- "instant",
- "lock_api",
- "parking_lot_core 0.8.6",
-]
-
-[[package]]
-name = "parking_lot"
 version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93857453250e3077bd71ff98b6a65ea6621a19bb0f559a85248955ac12c45a1a"
 dependencies = [
  "lock_api",
- "parking_lot_core 0.9.12",
-]
-
-[[package]]
-name = "parking_lot_core"
-version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60a2cfe6f0ad2bfc16aefa463b497d5c7a5ecd44a23efa72aa342d90177356dc"
-dependencies = [
- "cfg-if",
- "instant",
- "libc",
- "redox_syscall 0.2.16",
- "smallvec",
- "winapi",
+ "parking_lot_core",
 ]
 
 [[package]]
@@ -1152,7 +1119,7 @@ checksum = "2621685985a2ebf1c516881c026032ac7deafcda1a2c9b7850dc81e3dfcb64c1"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall 0.5.18",
+ "redox_syscall",
  "smallvec",
  "windows-link 0.2.1",
 ]
@@ -1238,7 +1205,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51de85fb3fb6524929c8a2eb85e6b6d363de4e8c48f9e2c2eac4944abc181c93"
 dependencies = [
  "log",
- "parking_lot 0.12.5",
+ "parking_lot",
  "scheduled-thread-pool",
 ]
 
@@ -1287,15 +1254,6 @@ name = "raw-window-handle"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2ff9a1f06a88b01621b7ae906ef0211290d1c8a168a15542486a8f61c0833b9"
-
-[[package]]
-name = "redox_syscall"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb5a58c1855b4b6819d59012155603f0b22ad30cad752600aadfcb695265519a"
-dependencies = [
- "bitflags 1.3.2",
-]
 
 [[package]]
 name = "redox_syscall"
@@ -1405,7 +1363,7 @@ version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cbc66816425a074528352f5789333ecff06ca41b36b0b0efdfbb29edc391a19"
 dependencies = [
- "parking_lot 0.12.5",
+ "parking_lot",
 ]
 
 [[package]]

@@ -3,11 +3,9 @@ use std::collections::VecDeque;
 use arc_util::ui::{render::item_context_menu, Ui};
 use arcdps::{
     extras::message::{ChannelType, SquadMessageFlags, SquadMessageOwned},
-    imgui::{
-        sys::{self, cty::c_char},
-        StyleColor,
-    },
+    imgui::{sys, StyleColor},
 };
+use core::ffi::c_char;
 use chrono::Local;
 
 use super::settings::{ColorSettings, FilterSettings};
@@ -71,7 +69,8 @@ impl LogPart {
             let end = start.add(s.len());
             let font = sys::igGetFont();
             let scale = ui.io().font_global_scale;
-            let end_line = sys::ImFont_CalcWordWrapPositionA(
+            // imgui 1.92 renamed `ImFont_CalcWordWrapPositionA` to drop the `A` suffix.
+            let end_line = sys::ImFont_CalcWordWrapPosition(
                 font,
                 scale,
                 start as *const c_char,
