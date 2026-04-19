@@ -144,13 +144,16 @@ impl ChatDatabase {
     ) -> anyhow::Result<()> {
         let connection = pool.get().context("failed to get database connection")?;
         loop {
-            let event = recv_chan.recv();
-            if let Ok(insert) = event {
-                match insert {
-                    DbInsert::ChatMessage(message) => {
-                        let mut statement = connection
-                            .prepare_cached(
-                                "INSERT INTO messages (
+            let insert = match recv_chan.recv() {
+                Ok(insert) => insert,
+                // sender dropped — shutdown, exit cleanly
+                Err(_) => return Ok(()),
+            };
+            match insert {
+                DbInsert::ChatMessage(message) => {
+                    let mut statement = connection
+                        .prepare_cached(
+                            "INSERT INTO messages (
                                             channel_id,
                                             channel_type,
                                             subgroup,
@@ -161,24 +164,24 @@ impl ChatDatabase {
                                             text,
                                             game_start
                                      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                            )
-                            .context("failed to prepare message insert statement")?;
-                        statement
-                            .execute(params![
-                                message.channel_id,
-                                message.channel_type.to_string(),
-                                message.subgroup,
-                                message.flags.contains(SquadMessageFlags::IS_BROADCAST),
-                                message.timestamp,
-                                message.account_name,
-                                message.character_name,
-                                message.text,
-                                game_start
-                            ])
-                            .context("failed to insert message")?;
-                    }
-                    DbInsert::AddNote(note) => {
-                        let mut statement = connection
+                        )
+                        .context("failed to prepare message insert statement")?;
+                    statement
+                        .execute(params![
+                            message.channel_id,
+                            message.channel_type.to_string(),
+                            message.subgroup,
+                            message.flags.contains(SquadMessageFlags::IS_BROADCAST),
+                            message.timestamp,
+                            message.account_name,
+                            message.character_name,
+                            message.text,
+                            game_start
+                        ])
+                        .context("failed to insert message")?;
+                }
+                DbInsert::AddNote(note) => {
+                    let mut statement = connection
                             .prepare_cached(
                                 "INSERT INTO notes (
                                             account_name,
@@ -189,41 +192,38 @@ impl ChatDatabase {
                                      ON CONFLICT (account_name) DO UPDATE SET note_updated=?2, note=?3",
                             )
                             .context("failed to prepare note insert statement")?;
-                        statement
-                            .execute(params![
-                                note.account_name,
-                                note.cur_time.to_string(),
-                                note.note
-                            ])
-                            .context("failed to insert note")?;
-                    }
-                    DbInsert::ColorNote(note) => {
-                        let mut statement = connection
+                    statement
+                        .execute(params![
+                            note.account_name,
+                            note.cur_time.to_string(),
+                            note.note
+                        ])
+                        .context("failed to insert note")?;
+                }
+                DbInsert::ColorNote(note) => {
+                    let mut statement = connection
                             .prepare_cached(
                                 "UPDATE notes SET color1=?1, color2=?2, color3=?3 WHERE account_name=?4",
                             )
                             .context("failed to prepare note color update statement")?;
-                        if let Some(color) = note.color {
-                            statement
-                                .execute(params![color[0], color[1], color[2], note.account_name,])
-                                .context("failed to update note color")?;
-                        } else {
-                            statement
-                                .execute(params![&Null, &Null, &Null, note.account_name,])
-                                .context("failed to update note color")?;
-                        }
-                    }
-                    DbInsert::DeleteNote(account_name) => {
-                        let mut statement = connection
-                            .prepare_cached("DELETE FROM notes WHERE account_name=?1")
-                            .context("failed to prepare delete note statement")?;
+                    if let Some(color) = note.color {
                         statement
-                            .execute(params![account_name,])
-                            .context("failed to delete note")?;
+                            .execute(params![color[0], color[1], color[2], note.account_name,])
+                            .context("failed to update note color")?;
+                    } else {
+                        statement
+                            .execute(params![&Null, &Null, &Null, note.account_name,])
+                            .context("failed to update note color")?;
                     }
                 }
-            } else if let Err(err) = event {
-                return Err(anyhow::Error::new(err).context("failed to receive insert event"));
+                DbInsert::DeleteNote(account_name) => {
+                    let mut statement = connection
+                        .prepare_cached("DELETE FROM notes WHERE account_name=?1")
+                        .context("failed to prepare delete note statement")?;
+                    statement
+                        .execute(params![account_name,])
+                        .context("failed to delete note")?;
+                }
             }
         }
     }
