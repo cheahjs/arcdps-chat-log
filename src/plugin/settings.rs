@@ -327,9 +327,7 @@ impl Plugin {
                 }
 
                 ui.set_next_item_width(input_width);
-                if ui
-                    .slider("TTS volume", 0, 100, &mut self.tts.settings.volume)
-                {
+                if ui.slider("TTS volume", 0, 100, &mut self.tts.settings.volume) {
                     let _ = self.tts.update_settings();
                 }
                 ui.set_next_item_width(input_width);

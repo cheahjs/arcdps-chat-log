@@ -144,7 +144,11 @@ impl Component<&Tracker> for LogUi {
                 ui.same_line_with_spacing(0.0, 0.0);
             }
 
-            if let Some(_child) = ui.child_window("chat_log").child_flags(ChildFlags::BORDERS).begin() {
+            if let Some(_child) = ui
+                .child_window("chat_log")
+                .child_flags(ChildFlags::BORDERS)
+                .begin()
+            {
                 self.buffer
                     .buffer
                     .iter()
