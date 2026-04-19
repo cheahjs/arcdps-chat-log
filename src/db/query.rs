@@ -85,66 +85,66 @@ impl ChatDatabase {
     ) -> anyhow::Result<()> {
         let connection = pool.get().context("failed to get database connection")?;
         loop {
-            let event = recv_chan.recv();
-            if let Ok(insert) = event {
-                match insert {
-                    DbQuery::Note(account_name) => {
-                        let mut statement = connection
+            let query = match recv_chan.recv() {
+                Ok(query) => query,
+                // sender dropped — shutdown, exit cleanly
+                Err(_) => return Ok(()),
+            };
+            match query {
+                DbQuery::Note(account_name) => {
+                    let mut statement = connection
                             .prepare_cached(
                                 "SELECT account_name, note, note_added, note_updated, color1, color2, color3 FROM notes
                                 WHERE account_name=?1 LIMIT 1",
                             )
                             .context("failed to prepare statement")?;
-                        let note_iter = statement
-                            .query_map(params![account_name], |row| {
-                                let color1: Option<f32> = row.get(4)?;
-                                let color2: Option<f32> = row.get(5)?;
-                                let color3: Option<f32> = row.get(6)?;
-                                #[allow(clippy::unnecessary_unwrap)]
-                                let color =
-                                    if color1.is_none() || color2.is_none() || color3.is_none() {
-                                        None
-                                    } else {
-                                        Some([color1.unwrap(), color2.unwrap(), color3.unwrap()])
-                                    };
-                                Ok(Note {
-                                    account_name: row.get(0)?,
-                                    note: row.get(1)?,
-                                    note_added: row.get(2)?,
-                                    note_updated: row.get(3)?,
-                                    color,
-                                })
+                    let note_iter = statement
+                        .query_map(params![account_name], |row| {
+                            let color1: Option<f32> = row.get(4)?;
+                            let color2: Option<f32> = row.get(5)?;
+                            let color3: Option<f32> = row.get(6)?;
+                            #[allow(clippy::unnecessary_unwrap)]
+                            let color = if color1.is_none() || color2.is_none() || color3.is_none()
+                            {
+                                None
+                            } else {
+                                Some([color1.unwrap(), color2.unwrap(), color3.unwrap()])
+                            };
+                            Ok(Note {
+                                account_name: row.get(0)?,
+                                note: row.get(1)?,
+                                note_added: row.get(2)?,
+                                note_updated: row.get(3)?,
+                                color,
                             })
-                            .context("failed to query note")?;
-                        let mut found = false;
-                        for note in note_iter {
-                            found = true;
-                            match note {
-                                Ok(note) => {
-                                    note_cache.lock().unwrap().insert(
-                                        account_name.to_owned(),
-                                        QueriedNote::Success(note),
-                                    );
-                                }
-                                Err(err) => {
-                                    error!("failed to query note: {:#}", err);
-                                    note_cache
-                                        .lock()
-                                        .unwrap()
-                                        .insert(account_name.to_owned(), QueriedNote::Error);
-                                }
+                        })
+                        .context("failed to query note")?;
+                    let mut found = false;
+                    for note in note_iter {
+                        found = true;
+                        match note {
+                            Ok(note) => {
+                                note_cache
+                                    .lock()
+                                    .unwrap()
+                                    .insert(account_name.to_owned(), QueriedNote::Success(note));
+                            }
+                            Err(err) => {
+                                error!("failed to query note: {:#}", err);
+                                note_cache
+                                    .lock()
+                                    .unwrap()
+                                    .insert(account_name.to_owned(), QueriedNote::Error);
                             }
                         }
-                        if !found {
-                            note_cache
-                                .lock()
-                                .unwrap()
-                                .insert(account_name.to_owned(), QueriedNote::NotFound);
-                        }
+                    }
+                    if !found {
+                        note_cache
+                            .lock()
+                            .unwrap()
+                            .insert(account_name.to_owned(), QueriedNote::NotFound);
                     }
                 }
-            } else if let Err(err) = event {
-                return Err(anyhow::Error::new(err).context("failed to receive query event"));
             }
         }
     }
