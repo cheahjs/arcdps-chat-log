@@ -37,8 +37,6 @@ pub struct SearchUiState {
     pub channel_type_index: usize,
     /// Whether the search window is open
     pub window_open: bool,
-    /// Counter for generating unique search IDs
-    pub search_id_counter: u64,
     /// Current search results (cached from db for display)
     pub cached_results: Vec<SearchResultMessage>,
     /// Whether there are more results to load
@@ -51,6 +49,29 @@ pub struct SearchUiState {
     pub error_message: Option<String>,
     /// The search ID of the cached results
     pub cached_search_id: u64,
+}
+
+/// State for the history browsing UI
+#[derive(Debug)]
+pub struct HistoryUiState {
+    /// Cached messages for display
+    pub cached_results: Vec<SearchResultMessage>,
+    /// Whether there are more results to load
+    pub has_more: bool,
+    /// Current offset for pagination
+    pub current_offset: u32,
+    /// Whether a load is in progress
+    pub is_loading: bool,
+    /// Last error message
+    pub error_message: Option<String>,
+    /// The search ID of the cached results
+    pub cached_search_id: u64,
+    /// Whether the initial load has been done
+    pub initial_load_done: bool,
+    /// Filter by channel type (index into CHANNEL_TYPES)
+    pub channel_type_index: usize,
+    /// Filter by account name
+    pub account_filter: String,
 }
 
 /// Channel type options for the filter dropdown
@@ -67,7 +88,6 @@ impl SearchUiState {
             account_filter: String::new(),
             channel_type_index: 0,
             window_open: false,
-            search_id_counter: 0,
             cached_results: Vec::new(),
             has_more: false,
             current_offset: 0,
@@ -75,12 +95,6 @@ impl SearchUiState {
             error_message: None,
             cached_search_id: 0,
         }
-    }
-
-    /// Generate a new unique search ID
-    pub fn next_search_id(&mut self) -> u64 {
-        self.search_id_counter += 1;
-        self.search_id_counter
     }
 
     /// Clear current results for a new search
@@ -98,12 +112,45 @@ impl Default for SearchUiState {
     }
 }
 
+impl HistoryUiState {
+    pub fn new() -> Self {
+        Self {
+            cached_results: Vec::new(),
+            has_more: false,
+            current_offset: 0,
+            is_loading: false,
+            error_message: None,
+            cached_search_id: 0,
+            initial_load_done: false,
+            channel_type_index: 0,
+            account_filter: String::new(),
+        }
+    }
+
+    /// Clear current results for a fresh load
+    pub fn clear_for_new_load(&mut self) {
+        self.cached_results.clear();
+        self.has_more = false;
+        self.current_offset = 0;
+        self.error_message = None;
+    }
+}
+
+impl Default for HistoryUiState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct LogUi {
     pub settings: ChatLogSettings,
     pub buffer: LogBuffer,
     pub chat_database: Option<Arc<Mutex<ChatDatabase>>>,
     ui_props: LocalProps,
     pub search_state: SearchUiState,
+    pub history_state: HistoryUiState,
+    /// Shared counter for generating unique search IDs across both tabs
+    pub search_id_counter: u64,
 }
 
 impl LogUi {
@@ -116,7 +163,15 @@ impl LogUi {
             chat_database: None,
             ui_props: LocalProps::new(),
             search_state: SearchUiState::new(),
+            history_state: HistoryUiState::new(),
+            search_id_counter: 0,
         }
+    }
+
+    /// Generate a new unique search ID (shared across search and history tabs)
+    pub fn next_search_id(&mut self) -> u64 {
+        self.search_id_counter += 1;
+        self.search_id_counter
     }
 
     pub fn update_settings(&mut self) {

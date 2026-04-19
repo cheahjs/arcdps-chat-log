@@ -365,6 +365,7 @@ impl Plugin {
     pub fn render_window_options(&mut self, ui: &Ui, option_name: Option<&str>) -> bool {
         if option_name.is_none() {
             ui.checkbox("Squad Log", self.log_ui.visible_mut());
+            ui.checkbox("Chat Log Search", &mut self.log_ui.search_state.window_open);
         }
         false
     }

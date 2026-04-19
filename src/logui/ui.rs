@@ -14,7 +14,7 @@ use log::error;
 use crate::{
     db::{
         insert::{NoteColorUpdate, NoteToAdd},
-        query::{QueriedNote, SearchQuery, SearchState},
+        query::{QueriedNote, SearchQuery, SearchResultMessage, SearchState},
         ChatDatabase,
     },
     logui::settings::SQUAD_BROADCAST_SUBGROUP,
@@ -26,7 +26,6 @@ use super::{LogUi, CHANNEL_TYPES};
 const DEFAULT_TEXT_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 
 const DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
-const SEARCH_DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M";
 
 impl Windowable<&Tracker> for LogUi {
     const CONTEXT_MENU: bool = true;
@@ -84,8 +83,28 @@ impl Component<&Tracker> for LogUi {
         let _border_style = ui.push_style_var(StyleVar::ChildBorderSize(1.0));
 
         if self.settings.show_filters {
-            ui.input_text("Filter", &mut self.ui_props.text_filter)
+            let button_width =
+                ui.calc_text_size("Search...")[0] + ui.clone_style().frame_padding[0] * 2.0;
+            ui.set_next_item_width(
+                ui.content_region_avail()[0] - button_width - ui.clone_style().item_spacing[0],
+            );
+            ui.input_text("##filter", &mut self.ui_props.text_filter)
+                .hint("Filter...")
                 .build();
+            ui.same_line();
+            if ui.button("Search...") {
+                self.search_state.window_open = true;
+            }
+            if ui.is_item_hovered() {
+                ui.tooltip_text("Search & browse chat history");
+            }
+        } else {
+            if ui.button("Search...") {
+                self.search_state.window_open = true;
+            }
+            if ui.is_item_hovered() {
+                ui.tooltip_text("Search & browse chat history");
+            }
         }
 
         if let Some(_child) = ChildWindow::new("chat_log_child_window").begin(ui) {
@@ -178,7 +197,7 @@ impl Component<&Tracker> for LogUi {
 }
 
 impl LogUi {
-    /// Render the search window
+    /// Render the search/history window
     pub fn render_search_window(&mut self, ui: &Ui) {
         if !self.search_state.window_open {
             return;
@@ -189,146 +208,251 @@ impl LogUi {
             .core(CoreColor::MediumGrey)
             .unwrap_or([0.5, 0.5, 0.5, 1.0]);
 
+        // Poll both tabs every frame regardless of which is active
+        self.poll_search_results();
+        self.poll_history_results();
+
         let mut window_open = self.search_state.window_open;
         if let Some(_window) = ImWindow::new("Chat Log Search")
             .size([500.0, 400.0], arcdps::imgui::Condition::FirstUseEver)
             .opened(&mut window_open)
             .begin(ui)
         {
-            // Search input
-            let mut do_search = false;
-            ui.set_next_item_width(ui.content_region_avail()[0] - 70.0);
-            if ui
-                .input_text("##search_text", &mut self.search_state.search_text)
-                .hint("Search messages...")
-                .enter_returns_true(true)
-                .build()
-            {
-                do_search = true;
-            }
-            ui.same_line();
-            if ui.button("Search") {
-                do_search = true;
-            }
-
-            // Filters row
-            ui.set_next_item_width(150.0);
-            if let Some(_combo) = ui.begin_combo(
-                "Channel",
-                CHANNEL_TYPES[self.search_state.channel_type_index].0,
-            ) {
-                for (i, (name, _)) in CHANNEL_TYPES.iter().enumerate() {
-                    let is_selected = i == self.search_state.channel_type_index;
-                    if Selectable::new(*name).selected(is_selected).build(ui) {
-                        self.search_state.channel_type_index = i;
-                    }
+            if let Some(_tab_bar) = ui.tab_bar("##search_tabs") {
+                if let Some(_tab) = ui.tab_item("Search") {
+                    self.render_search_tab(ui, grey);
+                }
+                if let Some(_tab) = ui.tab_item("History") {
+                    self.render_history_tab(ui, grey);
                 }
             }
-            ui.same_line();
-            ui.set_next_item_width(150.0);
-            ui.input_text("Account", &mut self.search_state.account_filter)
-                .hint("Filter by account...")
-                .build();
-
-            ui.separator();
-
-            // Status/results info
-            if self.search_state.is_searching {
-                ui.text("Searching...");
-            } else if !self.search_state.cached_results.is_empty() {
-                let status = if self.search_state.has_more {
-                    format!(
-                        "Showing {}+ results",
-                        self.search_state.cached_results.len()
-                    )
-                } else {
-                    format!("Found {} results", self.search_state.cached_results.len())
-                };
-                ui.text(status);
-            }
-            if let Some(err) = &self.search_state.error_message {
-                ui.text_colored([1.0, 0.3, 0.3, 1.0], format!("Error: {}", err));
-            }
-
-            // Results list
-            if let Some(_child) = ChildWindow::new("search_results")
-                .border(true)
-                .size([0.0, -30.0]) // Leave space for load more button
-                .begin(ui)
-            {
-                for msg in &self.search_state.cached_results {
-                    let channel_color = self
-                        .buffer
-                        .colors
-                        .text_color(&msg.channel_type, msg.subgroup)
-                        .unwrap_or(DEFAULT_TEXT_COLOR);
-                    let user_color = self
-                        .buffer
-                        .colors
-                        .user_color(&msg.channel_type, msg.subgroup)
-                        .unwrap_or(DEFAULT_TEXT_COLOR);
-
-                    // Timestamp
-                    ui.text_colored(
-                        grey,
-                        format!(
-                            "[{}]",
-                            msg.timestamp_datetime().format(SEARCH_DATETIME_FORMAT)
-                        ),
-                    );
-                    ui.same_line_with_spacing(0.0, 0.0);
-
-                    // Channel type
-                    ui.text_colored(grey, format!("[{}]", msg.channel_type));
-                    ui.same_line_with_spacing(0.0, 0.0);
-
-                    // Subgroup for squad messages
-                    if msg.channel_type == "Squad" && msg.subgroup != SQUAD_BROADCAST_SUBGROUP {
-                        ui.text_colored(channel_color, format!("[{}]", msg.subgroup + 1));
-                        ui.same_line_with_spacing(0.0, 0.0);
-                    }
-
-                    // Broadcast indicator
-                    if msg.is_broadcast {
-                        ui.text_colored(channel_color, "[BROADCAST]");
-                        ui.same_line_with_spacing(0.0, 0.0);
-                    }
-
-                    ui.text_colored(user_color, format!(" {}", msg.character_name));
-                    if ui.is_item_hovered() {
-                        ui.tooltip_text(&msg.account_name);
-                    }
-                    ui.same_line_with_spacing(0.0, 0.0);
-
-                    // Message text
-                    ui.text_colored(channel_color, format!(": {}", msg.text));
-                }
-            }
-
-            // Load more button
-            if self.search_state.has_more
-                && !self.search_state.is_searching
-                && ui.button("Load More")
-            {
-                self.load_more_search_results();
-            }
-
-            // Trigger search if requested
-            if do_search {
-                self.execute_search(false);
-            }
-
-            // Poll for search results
-            self.poll_search_results();
         }
         self.search_state.window_open = window_open;
     }
 
+    /// Render the search tab contents
+    fn render_search_tab(&mut self, ui: &Ui, grey: [f32; 4]) {
+        // Search input
+        let mut do_search = false;
+        ui.set_next_item_width(ui.content_region_avail()[0] - 70.0);
+        if ui
+            .input_text("##search_text", &mut self.search_state.search_text)
+            .hint("Search messages...")
+            .enter_returns_true(true)
+            .build()
+        {
+            do_search = true;
+        }
+        ui.same_line();
+        if ui.button("Search") {
+            do_search = true;
+        }
+
+        // Filters row
+        ui.set_next_item_width(150.0);
+        if let Some(_combo) = ui.begin_combo(
+            "Channel##search",
+            CHANNEL_TYPES[self.search_state.channel_type_index].0,
+        ) {
+            for (i, (name, _)) in CHANNEL_TYPES.iter().enumerate() {
+                let is_selected = i == self.search_state.channel_type_index;
+                if Selectable::new(*name).selected(is_selected).build(ui) {
+                    self.search_state.channel_type_index = i;
+                }
+            }
+        }
+        ui.same_line();
+        ui.set_next_item_width(150.0);
+        ui.input_text("Account##search", &mut self.search_state.account_filter)
+            .hint("Filter by account...")
+            .build();
+
+        ui.separator();
+
+        // Status/results info
+        if self.search_state.is_searching {
+            ui.text("Searching...");
+        } else if !self.search_state.cached_results.is_empty() {
+            let status = if self.search_state.has_more {
+                format!(
+                    "Showing {}+ results",
+                    self.search_state.cached_results.len()
+                )
+            } else {
+                format!("Found {} results", self.search_state.cached_results.len())
+            };
+            ui.text(status);
+        }
+        if let Some(err) = &self.search_state.error_message {
+            ui.text_colored([1.0, 0.3, 0.3, 1.0], format!("Error: {}", err));
+        }
+
+        // Results list
+        if let Some(_child) = ChildWindow::new("search_results")
+            .border(true)
+            .size([0.0, -30.0])
+            .begin(ui)
+        {
+            self.render_message_list(ui, grey, &self.search_state.cached_results.clone());
+        }
+
+        // Load more button
+        if self.search_state.has_more && !self.search_state.is_searching {
+            if ui.button("Load More##search") {
+                self.load_more_search_results();
+            }
+            ui.same_line();
+            ui.text_colored(grey, "(scroll for more results)");
+        }
+
+        // Trigger search if requested
+        if do_search {
+            self.execute_search(false);
+        }
+    }
+
+    /// Render the history tab contents
+    fn render_history_tab(&mut self, ui: &Ui, grey: [f32; 4]) {
+        // Auto-load on first visit
+        if !self.history_state.initial_load_done {
+            self.history_state.initial_load_done = true;
+            self.execute_history_load(false);
+        }
+
+        // Filters row
+        let mut do_reload = false;
+        ui.set_next_item_width(150.0);
+        if let Some(_combo) = ui.begin_combo(
+            "Channel##history",
+            CHANNEL_TYPES[self.history_state.channel_type_index].0,
+        ) {
+            for (i, (name, _)) in CHANNEL_TYPES.iter().enumerate() {
+                let is_selected = i == self.history_state.channel_type_index;
+                if Selectable::new(*name).selected(is_selected).build(ui)
+                    && i != self.history_state.channel_type_index
+                {
+                    self.history_state.channel_type_index = i;
+                    do_reload = true;
+                }
+            }
+        }
+        ui.same_line();
+        ui.set_next_item_width(150.0);
+        if ui
+            .input_text("Account##history", &mut self.history_state.account_filter)
+            .hint("Filter by account...")
+            .enter_returns_true(true)
+            .build()
+        {
+            do_reload = true;
+        }
+        ui.same_line();
+        if ui.button("Refresh") {
+            do_reload = true;
+        }
+
+        ui.separator();
+
+        // Status
+        if self.history_state.is_loading {
+            ui.text("Loading...");
+        } else if !self.history_state.cached_results.is_empty() {
+            let status = if self.history_state.has_more {
+                format!(
+                    "Showing {}+ messages",
+                    self.history_state.cached_results.len()
+                )
+            } else {
+                format!(
+                    "Showing {} messages",
+                    self.history_state.cached_results.len()
+                )
+            };
+            ui.text(status);
+        } else {
+            ui.text("No messages found.");
+        }
+        if let Some(err) = &self.history_state.error_message {
+            ui.text_colored([1.0, 0.3, 0.3, 1.0], format!("Error: {}", err));
+        }
+
+        // Message list
+        if let Some(_child) = ChildWindow::new("history_results")
+            .border(true)
+            .size([0.0, -30.0])
+            .begin(ui)
+        {
+            self.render_message_list(ui, grey, &self.history_state.cached_results.clone());
+        }
+
+        // Load more button
+        if self.history_state.has_more && !self.history_state.is_loading {
+            if ui.button("Load More##history") {
+                self.load_more_history();
+            }
+            ui.same_line();
+            ui.text_colored(grey, "(scroll for more messages)");
+        }
+
+        if do_reload {
+            self.execute_history_load(false);
+        }
+    }
+
+    /// Render a list of messages (shared between search and history tabs)
+    fn render_message_list(&self, ui: &Ui, grey: [f32; 4], messages: &[SearchResultMessage]) {
+        for msg in messages {
+            let channel_color = self
+                .buffer
+                .colors
+                .text_color(&msg.channel_type, msg.subgroup)
+                .unwrap_or(DEFAULT_TEXT_COLOR);
+            let user_color = self
+                .buffer
+                .colors
+                .user_color(&msg.channel_type, msg.subgroup)
+                .unwrap_or(DEFAULT_TEXT_COLOR);
+
+            // Timestamp
+            ui.text_colored(
+                grey,
+                format!("[{}]", msg.timestamp_datetime().format(DATETIME_FORMAT)),
+            );
+            ui.same_line_with_spacing(0.0, 0.0);
+
+            // Channel type
+            ui.text_colored(grey, format!("[{}]", msg.channel_type));
+            ui.same_line_with_spacing(0.0, 0.0);
+
+            // Subgroup for squad messages
+            if msg.channel_type == "Squad" && msg.subgroup != SQUAD_BROADCAST_SUBGROUP {
+                ui.text_colored(channel_color, format!("[{}]", msg.subgroup + 1));
+                ui.same_line_with_spacing(0.0, 0.0);
+            }
+
+            // Broadcast indicator
+            if msg.is_broadcast {
+                ui.text_colored(channel_color, "[BROADCAST]");
+                ui.same_line_with_spacing(0.0, 0.0);
+            }
+
+            // Character name with account tooltip
+            ui.text_colored(user_color, format!(" {}", msg.character_name));
+            if ui.is_item_hovered() {
+                ui.tooltip_text(&msg.account_name);
+            }
+            ui.same_line_with_spacing(0.0, 0.0);
+
+            // Message text
+            ui.text_colored(channel_color, format!(": {}", msg.text));
+        }
+    }
+
     /// Execute a search query
     fn execute_search(&mut self, append: bool) {
-        if let Some(chat_database) = &self.chat_database {
-            let search_id = self.search_state.next_search_id();
+        let search_id = self.next_search_id();
 
+        if let Some(chat_database) = &self.chat_database {
             if !append {
                 self.search_state.clear_for_new_search();
             }
@@ -363,6 +487,46 @@ impl LogUi {
         self.execute_search(true);
     }
 
+    /// Execute a history load query
+    fn execute_history_load(&mut self, append: bool) {
+        let search_id = self.next_search_id();
+
+        if let Some(chat_database) = &self.chat_database {
+            if !append {
+                self.history_state.clear_for_new_load();
+            }
+
+            self.history_state.is_loading = true;
+            self.history_state.cached_search_id = search_id;
+
+            let mut query = SearchQuery::new(String::new(), search_id);
+            query.offset = self.history_state.current_offset;
+            query.batch_size = self.settings.search_batch_size;
+
+            // Apply channel filter
+            if let Some((_, channel_type)) =
+                CHANNEL_TYPES.get(self.history_state.channel_type_index)
+            {
+                query.channel_type = channel_type.map(|s| s.to_string());
+            }
+
+            // Apply account filter
+            if !self.history_state.account_filter.is_empty() {
+                query.account_name = Some(self.history_state.account_filter.clone());
+            }
+
+            chat_database.lock().unwrap().search_messages(query);
+        } else {
+            self.history_state.error_message = Some("Database not available".to_string());
+        }
+    }
+
+    /// Load more history messages (pagination)
+    fn load_more_history(&mut self) {
+        self.history_state.current_offset += self.settings.search_batch_size;
+        self.execute_history_load(true);
+    }
+
     /// Poll for search results from the database
     fn poll_search_results(&mut self) {
         if !self.search_state.is_searching {
@@ -394,6 +558,40 @@ impl LogUi {
                 SearchState::Error(err) => {
                     self.search_state.error_message = Some(err);
                     self.search_state.is_searching = false;
+                }
+            }
+        }
+    }
+
+    /// Poll for history results from the database
+    fn poll_history_results(&mut self) {
+        if !self.history_state.is_loading {
+            return;
+        }
+
+        if let Some(chat_database) = &self.chat_database {
+            let state = chat_database.lock().unwrap().get_search_state();
+            match state {
+                SearchState::Idle => {}
+                SearchState::Searching(id) => {
+                    if id != self.history_state.cached_search_id {
+                        self.history_state.is_loading = false;
+                    }
+                }
+                SearchState::Results(results) => {
+                    if results.search_id == self.history_state.cached_search_id {
+                        if results.offset == 0 {
+                            self.history_state.cached_results = results.messages;
+                        } else {
+                            self.history_state.cached_results.extend(results.messages);
+                        }
+                        self.history_state.has_more = results.has_more;
+                        self.history_state.is_loading = false;
+                    }
+                }
+                SearchState::Error(err) => {
+                    self.history_state.error_message = Some(err);
+                    self.history_state.is_loading = false;
                 }
             }
         }
