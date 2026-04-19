@@ -7,7 +7,7 @@ use std::{
 use arc_util::ui::{render, Component, Ui, Windowable};
 use arcdps::{
     exports::{self, CoreColor},
-    imgui::{sys, StyleColor, StyleVar},
+    imgui::{sys, ChildFlags, StyleColor, StyleVar},
 };
 use log::error;
 
@@ -82,7 +82,7 @@ impl Component<&Tracker> for LogUi {
                 if let Some(_child) = ui
                     .child_window("chat_log_names")
                     .horizontal_scrollbar(true)
-                    .border(true)
+                    .child_flags(ChildFlags::BORDERS)
                     .size([self.ui_props.account_width, 0.0])
                     .begin()
                 {
@@ -144,7 +144,7 @@ impl Component<&Tracker> for LogUi {
                 ui.same_line_with_spacing(0.0, 0.0);
             }
 
-            if let Some(_child) = ui.child_window("chat_log").border(true).begin() {
+            if let Some(_child) = ui.child_window("chat_log").child_flags(ChildFlags::BORDERS).begin() {
                 self.buffer
                     .buffer
                     .iter()
