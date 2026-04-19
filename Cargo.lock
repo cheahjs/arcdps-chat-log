@@ -66,7 +66,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 [[package]]
 name = "arc_util"
 version = "0.11.5"
-source = "git+https://github.com/cheahjs/arcdps-utils?branch=bump-imgui-1.92.7#32cd2dfceff7c7a8461197dbd2561e60f74206d9"
+source = "git+https://github.com/cheahjs/arcdps-utils?branch=bump-imgui-1.92.7#7f9f121bdd0fa7c704d920d0461eb060dfc186b3"
 dependencies = [
  "arcdps",
  "chrono",
@@ -79,7 +79,7 @@ dependencies = [
 [[package]]
 name = "arcdps"
 version = "0.22.0"
-source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#50d74c23dfadf0b93ed9a029622178f4dc6d0506"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#8018ea90954ebbb5f2abb82916d23004d2b547d3"
 dependencies = [
  "arcdps-imgui",
  "arcdps_codegen",
@@ -124,7 +124,7 @@ dependencies = [
 [[package]]
 name = "arcdps-imgui"
 version = "0.13.0"
-source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#36a2fefa5def3f07309a179a71d196d0c0840ed8"
+source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#29dcca7bd146be068bb94737ce410bba4f3af90a"
 dependencies = [
  "arcdps-imgui-sys",
  "bitflags 1.3.2",
@@ -136,7 +136,7 @@ dependencies = [
 [[package]]
 name = "arcdps-imgui-sys"
 version = "0.13.0"
-source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#36a2fefa5def3f07309a179a71d196d0c0840ed8"
+source = "git+https://github.com/cheahjs/imgui-rs?branch=arcdps-from-upstream#29dcca7bd146be068bb94737ce410bba4f3af90a"
 dependencies = [
  "cc",
  "cfg-if",
@@ -146,7 +146,7 @@ dependencies = [
 [[package]]
 name = "arcdps_codegen"
 version = "0.12.1"
-source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#50d74c23dfadf0b93ed9a029622178f4dc6d0506"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#8018ea90954ebbb5f2abb82916d23004d2b547d3"
 dependencies = [
  "cfg-if",
  "paste",
@@ -490,7 +490,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 [[package]]
 name = "evtc"
 version = "0.14.0"
-source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#50d74c23dfadf0b93ed9a029622178f4dc6d0506"
+source = "git+https://github.com/cheahjs/Zerthox-arcdps-bindings?branch=bump-imgui-1.92.7#8018ea90954ebbb5f2abb82916d23004d2b547d3"
 dependencies = [
  "bitflags 2.10.0",
  "memoffset",
@@ -602,7 +602,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.59.0",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
