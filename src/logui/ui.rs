@@ -233,7 +233,7 @@ impl LogUi {
                     QueriedNote::Pending => true,
                 };
                 if ui
-                    .input_text("", &mut note_text)
+                    .input_text("##note", &mut note_text)
                     .read_only(read_only)
                     .build()
                     && ui.is_item_edited()
