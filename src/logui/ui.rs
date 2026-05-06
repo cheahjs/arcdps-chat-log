@@ -7,7 +7,7 @@ use std::{
 use arc_util::ui::{render, Component, Ui, Windowable};
 use arcdps::{
     exports::{self, CoreColor},
-    imgui::{sys, ChildWindow, ColorEdit, Selectable, StyleColor, StyleVar},
+    imgui::{sys, ChildFlags, StyleColor, StyleVar},
 };
 use log::error;
 
@@ -77,19 +77,20 @@ impl Component<&Tracker> for LogUi {
                 .build();
         }
 
-        if let Some(_child) = ChildWindow::new("chat_log_child_window").begin(ui) {
+        if let Some(_child) = ui.child_window("chat_log_child_window").begin() {
             if self.settings.show_seen_users {
-                if let Some(_child) = ChildWindow::new("chat_log_names")
+                if let Some(_child) = ui
+                    .child_window("chat_log_names")
                     .horizontal_scrollbar(true)
-                    .border(true)
+                    .child_flags(ChildFlags::BORDERS)
                     .size([self.ui_props.account_width, 0.0])
-                    .begin(ui)
+                    .begin()
                 {
                     ui.text("Seen Users");
                     ui.set_next_item_width(-ui.calc_text_size("Filter")[0] - 5.0);
                     ui.input_text("Filter", &mut self.ui_props.account_filter)
                         .build();
-                    if let Some(_child) = ChildWindow::new("chat_log_names_child").begin(ui) {
+                    if let Some(_child) = ui.child_window("chat_log_names_child").begin() {
                         ui.text_disabled("Tracked");
                         tracker
                             .seen_users
@@ -143,7 +144,11 @@ impl Component<&Tracker> for LogUi {
                 ui.same_line_with_spacing(0.0, 0.0);
             }
 
-            if let Some(_child) = ChildWindow::new("chat_log").border(true).begin(ui) {
+            if let Some(_child) = ui
+                .child_window("chat_log")
+                .child_flags(ChildFlags::BORDERS)
+                .begin()
+            {
                 self.buffer
                     .buffer
                     .iter()
@@ -209,7 +214,7 @@ impl LogUi {
             } else {
                 None
             };
-            if Selectable::new(label).build(ui) {
+            if ui.selectable(label) {
                 *text_filter = account_name.to_string();
             }
         }
@@ -248,10 +253,7 @@ impl LogUi {
                         .unwrap_or([1.0, 1.0, 1.0, 1.0]);
                     let white: [f32; 3] = [white[0], white[1], white[2]];
                     let mut note_color = note.color.map_or(white, |color| color);
-                    if ColorEdit::new("Highlight color", &mut note_color)
-                        .alpha(false)
-                        .build(ui)
-                    {
+                    if ui.color_edit3("Highlight color", &mut note_color) {
                         let new_note_color = if note_color != white {
                             Some(note_color)
                         } else {

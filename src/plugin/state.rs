@@ -1,5 +1,22 @@
 use std::sync::{Arc, Mutex};
 
+use log::error;
+
+/// RAII guard that resets the `refreshing` flag to false when dropped.
+/// This ensures the flag is cleared even on panic or early return.
+struct RefreshingGuard {
+    flag: Arc<Mutex<bool>>,
+}
+
+impl Drop for RefreshingGuard {
+    fn drop(&mut self) {
+        match self.flag.lock() {
+            Ok(mut refreshing) => *refreshing = false,
+            Err(mut poisoned) => **poisoned.get_mut() = false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ExtrasState {
     Loaded,
@@ -63,16 +80,25 @@ impl UiState {
         }
 
         std::thread::spawn(move || {
-            use rodio::cpal::traits::{DeviceTrait, HostTrait};
-            let host = rodio::cpal::default_host();
-            if let Ok(devices) = host.output_devices() {
-                let mut new_devices: Vec<String> = devices.filter_map(|d| d.name().ok()).collect();
-                new_devices.sort();
-                let mut devices = devices_mutex.lock().unwrap();
-                *devices = new_devices;
+            // Drop guard ensures `refreshing` is reset to false even if cpal panics
+            // or we return early, preventing the UI from being stuck on "Refreshing...".
+            let _guard = RefreshingGuard { flag: refreshing };
+
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                use rodio::cpal::traits::{DeviceTrait, HostTrait};
+                let host = rodio::cpal::default_host();
+                if let Ok(devices) = host.output_devices() {
+                    let mut new_devices: Vec<String> =
+                        devices.filter_map(|d| d.name().ok()).collect();
+                    new_devices.sort();
+                    let mut devices = devices_mutex.lock().unwrap();
+                    *devices = new_devices;
+                }
+            }));
+
+            if let Err(err) = result {
+                error!("panic while refreshing audio devices: {:?}", err);
             }
-            let mut refreshing = refreshing.lock().unwrap();
-            *refreshing = false;
         });
     }
 }

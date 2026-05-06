@@ -3,12 +3,10 @@ use std::collections::VecDeque;
 use arc_util::ui::{render::item_context_menu, Ui};
 use arcdps::{
     extras::message::{ChannelType, SquadMessageFlags, SquadMessageOwned},
-    imgui::{
-        sys::{self, cty::c_char},
-        StyleColor,
-    },
+    imgui::{sys, StyleColor},
 };
 use chrono::Local;
+use core::ffi::c_char;
 
 use super::settings::{ColorSettings, FilterSettings};
 
@@ -70,10 +68,14 @@ impl LogPart {
             let start = s.as_ptr();
             let end = start.add(s.len());
             let font = sys::igGetFont();
-            let scale = ui.io().font_global_scale;
-            let end_line = sys::ImFont_CalcWordWrapPositionA(
+            // imgui 1.92 reworked this API: the first argument is now the font size in
+            // pixels, not a scale factor. Passing a scale (~1.0) causes imgui to bake a
+            // 1-pixel font and load glyphs on demand for every character on every
+            // frame, which hangs the game when the log has content.
+            let font_size = sys::igGetFontSize();
+            let end_line = sys::ImFont_CalcWordWrapPosition(
                 font,
-                scale,
+                font_size,
                 start as *const c_char,
                 end as *const c_char,
                 width_left,
