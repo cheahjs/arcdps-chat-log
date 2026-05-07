@@ -230,6 +230,16 @@ pub fn check_for_update(state: &mut UpdateState, include_prereleases: bool) {
             }
         };
 
+        if !(200..300).contains(&response.status_code) {
+            error!(
+                "release lookup returned HTTP {} {}: {}",
+                response.status_code,
+                response.reason_phrase,
+                response.as_str().unwrap_or("<non-utf8 body>")
+            );
+            return;
+        }
+
         let body = match response.as_str() {
             Ok(s) => s,
             Err(e) => {
@@ -352,13 +362,25 @@ pub fn perform_update(state: &mut UpdateState) {
             }
         };
 
+        // GitHub asset URLs follow a redirect to the CDN; minreq follows it transparently
+        // but we still need to verify we got a 2xx so we don't write an error page over the DLL.
+        if !(200..300).contains(&response.status_code) {
+            let msg = format!(
+                "download returned HTTP {} {}",
+                response.status_code, response.reason_phrase
+            );
+            error!("{}", msg);
+            *status.lock().unwrap() = UpdateStatus::UpdateError;
+            *error_message.lock().unwrap() = Some(msg);
+            return;
+        }
+
         let mut file = match fs::File::create(&tmp_path) {
             Ok(f) => f,
             Err(e) => {
                 error!("failed to create temp file: {}", e);
                 *status.lock().unwrap() = UpdateStatus::UpdateError;
-                *error_message.lock().unwrap() =
-                    Some(format!("failed to create temp file: {}", e));
+                *error_message.lock().unwrap() = Some(format!("failed to create temp file: {}", e));
                 return;
             }
         };

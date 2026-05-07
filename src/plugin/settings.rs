@@ -373,9 +373,7 @@ impl Plugin {
                     &mut self.update_state.settings.include_prereleases,
                 );
                 if ui.is_item_hovered() {
-                    ui.tooltip_text(
-                        "Consider prerelease (beta) builds when checking for updates.",
-                    );
+                    ui.tooltip_text("Consider prerelease (beta) builds when checking for updates.");
                 }
 
                 ui.spacing();
