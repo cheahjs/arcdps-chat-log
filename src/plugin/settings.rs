@@ -363,6 +363,34 @@ impl Plugin {
                         .play("This is some sample text being played with text to speech");
                 }
             }
+            if let Some(_tab) = ui.tab_item("Updates") {
+                ui.checkbox(
+                    "Check for updates on startup",
+                    &mut self.update_state.settings.check_enabled,
+                );
+                ui.checkbox(
+                    "Include prereleases",
+                    &mut self.update_state.settings.include_prereleases,
+                );
+                if ui.is_item_hovered() {
+                    ui.tooltip_text("Consider prerelease (beta) builds when checking for updates.");
+                }
+
+                ui.spacing();
+                if ui.button("Check for updates now") {
+                    let include_prereleases = self.update_state.settings.include_prereleases;
+                    // Reset state so the window will surface again.
+                    self.update_state
+                        .set_status(crate::update::UpdateStatus::Unknown);
+                    crate::update::check_for_update(&mut self.update_state, include_prereleases);
+                }
+
+                ui.group(|| {
+                    ui.text("Current version:");
+                    ui.same_line();
+                    ui.text_colored(grey, super::VERSION);
+                });
+            }
         }
     }
 
