@@ -7,6 +7,7 @@ mod panic_handler;
 mod plugin;
 mod tracking;
 mod tts;
+mod update;
 
 use arcdps::extras::{ExtrasAddonInfo, Message, UserInfoIter};
 use arcdps::imgui::Ui;

@@ -20,6 +20,7 @@ use crate::{
     plugin::state::{MumbleLinkState, NotificationsState, TtsState},
     tracking::Tracker,
     tts::TextToSpeech,
+    update::{self, UpdateState},
 };
 
 use self::state::UiState;
@@ -37,6 +38,7 @@ pub struct Plugin {
     chat_database: Option<Arc<Mutex<ChatDatabase>>>,
     tts: TextToSpeech,
     tracker: Tracker,
+    pub update_state: UpdateState,
 }
 
 impl Plugin {
@@ -58,6 +60,10 @@ impl Plugin {
             chat_database: None,
             tts: TextToSpeech::new(),
             tracker: Tracker::new(),
+            update_state: UpdateState::new(
+                Some(update::get_current_version()),
+                update::get_dll_path().unwrap_or_default(),
+            ),
         }
     }
 
@@ -69,6 +75,16 @@ impl Plugin {
         settings.load_component(&mut self.log_ui);
         settings.load_component(&mut self.notifications);
         settings.load_component(&mut self.tts);
+        settings.load_component(&mut self.update_state);
+
+        // Clean up leftover update files from a previous run, then (if enabled) check for a new version.
+        if !self.update_state.install_path.as_os_str().is_empty() {
+            update::clear_old_files(&self.update_state.install_path);
+        }
+        if self.update_state.settings.check_enabled {
+            let include_prereleases = self.update_state.settings.include_prereleases;
+            update::check_for_update(&mut self.update_state, include_prereleases);
+        }
 
         self.log_ui.buffer.buffer_max_size = self.log_ui.settings.log_buffer as usize;
 
@@ -116,6 +132,7 @@ impl Plugin {
     }
 
     pub fn release(&mut self) {
+        self.update_state.finish_pending_tasks();
         if let Some(chat_database) = &self.chat_database {
             chat_database.lock().unwrap().release();
         }
@@ -123,6 +140,7 @@ impl Plugin {
         settings.store_component(&self.log_ui);
         settings.store_component(&self.notifications);
         settings.store_component(&self.tts);
+        settings.store_component(&self.update_state);
         settings.save_file();
     }
 }
