@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use arc_util::ui::{render::item_context_menu, Ui};
 use arcdps::{
@@ -12,9 +13,11 @@ use super::settings::{ColorSettings, FilterSettings};
 
 const TIMESTAMP_FORMAT: &str = "%H:%M:%S";
 
+static NEXT_LOG_PART_ID: AtomicU64 = AtomicU64::new(0);
+
 #[derive(Debug)]
 pub struct LogPart {
-    id: i64,
+    id: u64,
     pub text: String,
     pub hover: Option<String>,
     pub color: Option<[f32; 4]>,
@@ -29,7 +32,7 @@ impl LogPart {
         clipboard: Option<&str>,
     ) -> Self {
         Self {
-            id: chrono::Utc::now().timestamp_micros(),
+            id: NEXT_LOG_PART_ID.fetch_add(1, Ordering::Relaxed),
             text: text.to_owned(),
             hover: hover.map(str::to_string),
             color,
