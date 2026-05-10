@@ -30,6 +30,7 @@ pub struct LogUi {
     pub settings: ChatLogSettings,
     pub buffer: LogBuffer,
     pub chat_database: Option<Arc<Mutex<ChatDatabase>>>,
+    pub show_scroll_bar: bool,
     ui_props: LocalProps,
 }
 
@@ -41,6 +42,7 @@ impl LogUi {
             settings: ChatLogSettings::new(),
             buffer: LogBuffer::new(),
             chat_database: None,
+            show_scroll_bar: true,
             ui_props: LocalProps::new(),
         }
     }

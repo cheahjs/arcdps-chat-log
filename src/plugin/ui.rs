@@ -5,6 +5,9 @@ use crate::update;
 
 impl Plugin {
     pub fn render_windows(&mut self, ui: &Ui, _not_loading: bool) {
+        // Propagate the parent window's scrollbar option to the inner component
+        // so the chat log's child windows respect the user's toggle.
+        self.log_ui.inner.show_scroll_bar = self.log_ui.options.scroll_bar;
         self.log_ui.render(ui, &self.tracker);
         update::draw_update_window(ui, &mut self.update_state);
     }

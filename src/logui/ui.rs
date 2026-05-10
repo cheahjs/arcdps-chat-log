@@ -77,11 +77,16 @@ impl Component<&Tracker> for LogUi {
                 .build();
         }
 
-        if let Some(_child) = ui.child_window("chat_log_child_window").begin() {
+        if let Some(_child) = ui
+            .child_window("chat_log_child_window")
+            .scroll_bar(self.show_scroll_bar)
+            .begin()
+        {
             if self.settings.show_seen_users {
                 if let Some(_child) = ui
                     .child_window("chat_log_names")
                     .horizontal_scrollbar(true)
+                    .scroll_bar(self.show_scroll_bar)
                     .child_flags(ChildFlags::BORDERS)
                     .size([self.ui_props.account_width, 0.0])
                     .begin()
@@ -90,7 +95,11 @@ impl Component<&Tracker> for LogUi {
                     ui.set_next_item_width(-ui.calc_text_size("Filter")[0] - 5.0);
                     ui.input_text("Filter", &mut self.ui_props.account_filter)
                         .build();
-                    if let Some(_child) = ui.child_window("chat_log_names_child").begin() {
+                    if let Some(_child) = ui
+                        .child_window("chat_log_names_child")
+                        .scroll_bar(self.show_scroll_bar)
+                        .begin()
+                    {
                         ui.text_disabled("Tracked");
                         tracker
                             .seen_users
@@ -146,6 +155,7 @@ impl Component<&Tracker> for LogUi {
 
             if let Some(_child) = ui
                 .child_window("chat_log")
+                .scroll_bar(self.show_scroll_bar)
                 .child_flags(ChildFlags::BORDERS)
                 .begin()
             {
