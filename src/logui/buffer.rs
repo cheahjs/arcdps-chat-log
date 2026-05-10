@@ -57,7 +57,7 @@ impl LogPart {
         Self::new_time(chrono::Local::now())
     }
 
-    pub fn render(&self, ui: &Ui, display_hover: bool) {
+    pub fn render(&self, ui: &Ui, display_hover: bool, line_text: &str) {
         let color_style = self
             .color
             .map(|color| ui.push_style_color(StyleColor::Text, color));
@@ -90,7 +90,7 @@ impl LogPart {
             ));
         }
 
-        self.render_context_menu(ui, 0);
+        self.render_context_menu(ui, 0, line_text);
         self.render_hover(ui, display_hover);
 
         if end_length < label.len() {
@@ -101,7 +101,7 @@ impl LogPart {
                     rest_of_str = &rest_of_str[1..];
                 }
                 ui.text_wrapped(rest_of_str);
-                self.render_context_menu(ui, 1);
+                self.render_context_menu(ui, 1, line_text);
                 self.render_hover(ui, display_hover);
             }
         }
@@ -122,15 +122,19 @@ impl LogPart {
         }
     }
 
-    fn render_context_menu(&self, ui: &Ui, order: usize) {
-        if let Some(text) = self.clipboard.as_ref() {
-            item_context_menu(format!("##squadlogcontext{}{}", order, self.id), || {
+    fn render_context_menu(&self, ui: &Ui, order: usize, line_text: &str) {
+        item_context_menu(format!("##squadlogcontext{}{}", order, self.id), || {
+            if ui.button("Copy line") {
+                ui.set_clipboard_text(line_text);
+                ui.close_current_popup();
+            }
+            if let Some(text) = self.clipboard.as_ref() {
                 if ui.button("Copy") {
                     ui.set_clipboard_text(text);
                     ui.close_current_popup();
                 }
-            });
-        }
+            }
+        });
     }
 
     pub fn get_text(&self, display_hover: bool) -> String {
@@ -173,11 +177,19 @@ impl LogLine {
     }
 
     pub fn render(&self, ui: &Ui, hover: bool) {
+        let line_text = self.full_text(hover);
         self.parts.iter().for_each(|p| {
-            p.render(ui, hover);
+            p.render(ui, hover, &line_text);
             ui.same_line_with_spacing(0.0, 0.0);
         });
         ui.new_line();
+    }
+
+    fn full_text(&self, display_hover: bool) -> String {
+        self.parts
+            .iter()
+            .map(|p| p.get_text(display_hover))
+            .collect()
     }
 
     pub fn filter(&self, text: &str, types: &FilterSettings) -> bool {
